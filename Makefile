@@ -4,8 +4,13 @@ build:
 
 .PHONY: clean
 clean:
-	rm dbverify
+	@rm -f dbverify ||:
+	@go clean -testcache ||:
 
 .PHONY: lint
 lint:
 	@go run vendor/github.com/golangci/golangci-lint/cmd/golangci-lint/main.go -v run
+
+.PHONY: test
+test:
+	go test ./...
