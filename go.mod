@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/golangci/golangci-lint v1.43.0
 	github.com/jackc/pgx v3.6.2+incompatible
+	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.3.0
 )
 
@@ -117,7 +118,6 @@ require (
 	github.com/securego/gosec/v2 v2.9.1 // indirect
 	github.com/shazow/go-diff v0.0.0-20160112020656-b6b7b6733b8c // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
-	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/sivchari/tenv v1.4.7 // indirect
 	github.com/sonatard/noctx v0.0.1 // indirect
 	github.com/sourcegraph/go-diff v0.6.1 // indirect
