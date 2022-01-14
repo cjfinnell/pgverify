@@ -10,19 +10,24 @@ import (
 
 // Flags
 var (
-	targetsFlag []string
+	targetsFlag       *[]string
+	includeTablesFlag *[]string
+	excludeTablesFlag *[]string
 )
 
 func init() {
-	rootCmd.Flags().StringSliceP("targets", "t", targetsFlag, "target database URIs (comma separated)")
+	targetsFlag = rootCmd.Flags().StringSliceP("targets", "t", []string{}, "target postgresql-format database URIs (comma separated)")
 	rootCmd.MarkFlagRequired("targets") //nolint:errcheck
+
+	includeTablesFlag = rootCmd.Flags().StringSlice("include-tables", []string{}, "tables to verify (comma separated)")
+	excludeTablesFlag = rootCmd.Flags().StringSlice("exclude-tables", []string{}, "tables to skip verification, ignored if '--include-tables' used (comma separated)")
 }
 
 var rootCmd = &cobra.Command{
 	Use: "dbverify",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var targets []pgx.ConnConfig
-		for _, target := range targetsFlag {
+		for _, target := range *targetsFlag {
 			connConfig, err := pgx.ParseURI(target)
 			if err != nil {
 				return fmt.Errorf("invalid target URI %s: %w", target, err)
@@ -30,6 +35,6 @@ var rootCmd = &cobra.Command{
 			targets = append(targets, connConfig)
 		}
 
-		return dbverify.Verify(targets)
+		return dbverify.Verify(targets, *includeTablesFlag, *excludeTablesFlag)
 	},
 }
