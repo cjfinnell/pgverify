@@ -38,7 +38,7 @@ func (c Config) Verify(targets []pgx.ConnConfig) error {
 	var doneChannels []chan struct{}
 	for i, conn := range conns {
 		done := make(chan struct{})
-		go c.generateTableHashes(i, conn, c.IncludeTables, c.ExcludeTables, c.IncludeSchemas, c.ExcludeSchemas, done)
+		go c.generateTableHashes(i, conn, done)
 		doneChannels = append(doneChannels, done)
 	}
 	for _, done := range doneChannels {
@@ -72,7 +72,7 @@ type column struct {
 	dataType string
 }
 
-func (c Config) generateTableHashes(targetIndex int, conn *pgx.Conn, includeTables, excludeTables, includeSchemas, excludeSchemas []string, done chan struct{}) {
+func (c Config) generateTableHashes(targetIndex int, conn *pgx.Conn, done chan struct{}) {
 	logger := c.Logger.WithField("target", targetIndex)
 	schemaTableHashes := make(map[string]map[string]string)
 
