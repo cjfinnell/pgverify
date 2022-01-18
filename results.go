@@ -1,16 +1,14 @@
 package dbverify
 
 import (
-	"fmt"
 	"io"
 	"sort"
-	"strings"
 
 	"github.com/olekukonko/tablewriter"
 )
 
 // results[table][hash] = [target1, target2, ...]
-type Results map[string]map[string][]int
+type Results map[string]map[string][]string
 
 func (r Results) WriteAsTable(writer io.Writer) {
 	output := tablewriter.NewWriter(writer)
@@ -19,12 +17,14 @@ func (r Results) WriteAsTable(writer io.Writer) {
 	var rows [][]string
 	for table, hashes := range r {
 		for hash, targets := range hashes {
-			sort.Ints(targets)
-			rows = append(rows, []string{
-				table,
-				hash,
-				strings.Trim(strings.Join(strings.Fields(fmt.Sprint(targets)), ","), "[]"),
-			})
+			sort.Strings(targets)
+			for _, target := range targets {
+				rows = append(rows, []string{
+					table,
+					hash,
+					target,
+				})
+			}
 		}
 	}
 
@@ -40,5 +40,6 @@ func (r Results) WriteAsTable(writer io.Writer) {
 	for _, row := range rows {
 		output.Append(row)
 	}
+	output.SetAutoMergeCellsByColumnIndex([]int{0, 1})
 	output.Render()
 }

@@ -37,7 +37,7 @@ func (c Config) Verify(targets []pgx.ConnConfig) (Results, error) {
 	var doneChannels []chan struct{}
 	for i, conn := range conns {
 		done := make(chan struct{})
-		go c.generateTableHashes(i, conn, done)
+		go c.generateTableHashes(targets[i].Host, conn, done)
 		doneChannels = append(doneChannels, done)
 	}
 	for _, done := range doneChannels {
@@ -65,8 +65,8 @@ func (c Config) Verify(targets []pgx.ConnConfig) (Results, error) {
 	return finalResults, nil
 }
 
-func (c Config) generateTableHashes(targetIndex int, conn *pgx.Conn, done chan struct{}) {
-	logger := c.Logger.WithField("target", targetIndex)
+func (c Config) generateTableHashes(targetHost string, conn *pgx.Conn, done chan struct{}) {
+	logger := c.Logger.WithField("target", targetHost)
 	schemaTableHashes := make(map[string]map[string]string)
 
 	rows, err := conn.Query(buildGetTablesQuery(c.IncludeSchemas, c.ExcludeSchemas, c.IncludeTables, c.ExcludeTables))
@@ -133,9 +133,9 @@ func (c Config) generateTableHashes(targetIndex int, conn *pgx.Conn, done chan s
 		for table, hash := range tables {
 			tableFullName := fmt.Sprintf("%s.%s", schema, table)
 			if _, ok := finalResults[tableFullName]; !ok {
-				finalResults[tableFullName] = make(map[string][]int)
+				finalResults[tableFullName] = make(map[string][]string)
 			}
-			finalResults[tableFullName][hash] = append(finalResults[tableFullName][hash], targetIndex)
+			finalResults[tableFullName][hash] = append(finalResults[tableFullName][hash], targetHost)
 		}
 	}
 	finalResultsMutex.Unlock()
