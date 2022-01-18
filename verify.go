@@ -67,11 +67,6 @@ func (c Config) Verify(targets []pgx.ConnConfig) error {
 	return nil
 }
 
-type column struct {
-	name     string
-	dataType string
-}
-
 func (c Config) generateTableHashes(targetIndex int, conn *pgx.Conn, done chan struct{}) {
 	logger := c.Logger.WithField("target", targetIndex)
 	schemaTableHashes := make(map[string]map[string]string)
@@ -121,7 +116,7 @@ func (c Config) generateTableHashes(targetIndex int, conn *pgx.Conn, done chan s
 
 			var columnsWithCasting []string
 			for _, column := range tableColumns {
-				columnsWithCasting = append(columnsWithCasting, determineTypeCasting(column))
+				columnsWithCasting = append(columnsWithCasting, column.String())
 			}
 
 			var hash pgtype.Text
@@ -215,13 +210,4 @@ func (c Config) buildGetTablesQuery() string {
 	}
 
 	return query
-}
-
-func determineTypeCasting(col column) string {
-	switch strings.ToLower(col.dataType) {
-	case "timestamp with time zone":
-		return fmt.Sprintf("extract(epoch from %s)::TEXT", col.name)
-	default:
-		return col.name + "::TEXT"
-	}
 }
