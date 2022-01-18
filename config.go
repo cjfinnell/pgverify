@@ -1,10 +1,14 @@
 package dbverify
 
+import log "github.com/sirupsen/logrus"
+
 type Config struct {
 	IncludeTables  []string
 	ExcludeTables  []string
 	IncludeSchemas []string
 	ExcludeSchemas []string
+
+	Logger *log.Logger
 }
 
 // Option interface used for setting optional config properties.
@@ -20,10 +24,19 @@ func (o optionFunc) apply(c *Config) {
 
 func NewConfig(opts ...Option) Config {
 	c := Config{}
-	for _, opt := range opts {
+	defaultOpts := []Option{
+		WithLogger(log.StandardLogger()),
+	}
+	for _, opt := range append(defaultOpts, opts...) {
 		opt.apply(&c)
 	}
 	return c
+}
+
+func WithLogger(logger *log.Logger) optionFunc {
+	return func(c *Config) {
+		c.Logger = logger
+	}
 }
 
 func ExcludeSchemas(schemas ...string) optionFunc {

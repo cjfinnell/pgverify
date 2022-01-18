@@ -2,14 +2,12 @@ package dbverify
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"sync"
 
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgtype"
-	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -24,9 +22,7 @@ func Verify(targets []pgx.ConnConfig, opts ...Option) error {
 }
 
 func (c Config) Verify(targets []pgx.ConnConfig) error {
-	log.SetLevel(log.DebugLevel)
-	log.SetOutput(os.Stderr)
-	log.Infof("Verifying %d targets", len(targets))
+	c.Logger.Infof("Verifying %d targets", len(targets))
 
 	// First check that we can connect to every specified target database.
 	conns := make(map[int]*pgx.Conn)
@@ -43,7 +39,7 @@ func (c Config) Verify(targets []pgx.ConnConfig) error {
 	var doneChannels []chan struct{}
 	for i, conn := range conns {
 		done := make(chan struct{})
-		go generateTableHashes(i, conn, c.IncludeTables, c.ExcludeTables, c.IncludeSchemas, c.ExcludeSchemas, done)
+		go c.generateTableHashes(i, conn, c.IncludeTables, c.ExcludeTables, c.IncludeSchemas, c.ExcludeSchemas, done)
 		doneChannels = append(doneChannels, done)
 	}
 	for _, done := range doneChannels {
@@ -51,7 +47,7 @@ func (c Config) Verify(targets []pgx.ConnConfig) error {
 	}
 
 	// Compare final results
-	log.Infof("Final hashes: %v", finalResults)
+	c.Logger.Infof("Final hashes: %v", finalResults)
 	var hashErrors []string
 	for table, hashes := range finalResults {
 		if len(hashes) > 1 {
@@ -68,7 +64,7 @@ func (c Config) Verify(targets []pgx.ConnConfig) error {
 		return fmt.Errorf("Verification failed with errors: %s", strings.Join(hashErrors, "; "))
 	}
 
-	log.Info("Verification successful")
+	c.Logger.Info("Verification successful")
 	return nil
 }
 
@@ -77,8 +73,8 @@ type column struct {
 	dataType string
 }
 
-func generateTableHashes(targetIndex int, conn *pgx.Conn, includeTables, excludeTables, includeSchemas, excludeSchemas []string, done chan struct{}) {
-	logger := log.WithField("target", targetIndex)
+func (c Config) generateTableHashes(targetIndex int, conn *pgx.Conn, includeTables, excludeTables, includeSchemas, excludeSchemas []string, done chan struct{}) {
+	logger := c.Logger.WithField("target", targetIndex)
 	schemaTableHashes := make(map[string]map[string]string)
 
 	if len(includeTables) == 0 {
