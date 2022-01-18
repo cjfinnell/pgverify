@@ -117,7 +117,7 @@ func (c Config) generateTableHashes(targetIndex int, conn *pgx.Conn, done chan s
 				switch err {
 				case pgx.ErrNoRows:
 					tableLogger.Info("No rows found")
-					hash.String = "0"
+					hash.String = "no rows"
 				default:
 					tableLogger.WithError(err).Error("Failed to compute hash")
 					continue
