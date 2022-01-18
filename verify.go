@@ -10,17 +10,16 @@ import (
 )
 
 var (
-	// results[table][hash] = [target1, target2, ...]
-	finalResults      = make(map[string]map[string][]int)
+	finalResults      = make(Results)
 	finalResultsMutex = &sync.Mutex{}
 )
 
-func Verify(targets []pgx.ConnConfig, opts ...Option) error {
+func Verify(targets []pgx.ConnConfig, opts ...Option) (Results, error) {
 	c := NewConfig(opts...)
 	return c.Verify(targets)
 }
 
-func (c Config) Verify(targets []pgx.ConnConfig) error {
+func (c Config) Verify(targets []pgx.ConnConfig) (Results, error) {
 	c.Logger.Infof("Verifying %d targets", len(targets))
 
 	// First check that we can connect to every specified target database.
@@ -28,7 +27,7 @@ func (c Config) Verify(targets []pgx.ConnConfig) error {
 	for i, target := range targets {
 		conn, err := pgx.Connect(target)
 		if err != nil {
-			return err
+			return finalResults, err
 		}
 		defer conn.Close()
 		conns[i] = conn
@@ -46,7 +45,6 @@ func (c Config) Verify(targets []pgx.ConnConfig) error {
 	}
 
 	// Compare final results
-	c.Logger.Infof("Final hashes: %v", finalResults)
 	var hashErrors []string
 	for table, hashes := range finalResults {
 		if len(hashes) > 1 {
@@ -60,11 +58,11 @@ func (c Config) Verify(targets []pgx.ConnConfig) error {
 	}
 
 	if len(hashErrors) > 0 {
-		return fmt.Errorf("Verification failed with errors: %s", strings.Join(hashErrors, "; "))
+		return finalResults, fmt.Errorf("Verification failed with errors: %s", strings.Join(hashErrors, "; "))
 	}
 
 	c.Logger.Info("Verification successful")
-	return nil
+	return finalResults, nil
 }
 
 func (c Config) generateTableHashes(targetIndex int, conn *pgx.Conn, done chan struct{}) {

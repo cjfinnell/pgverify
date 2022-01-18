@@ -39,12 +39,17 @@ var rootCmd = &cobra.Command{
 			targets = append(targets, connConfig)
 		}
 
-		return dbverify.Verify(
+		report, err := dbverify.Verify(
 			targets,
 			dbverify.IncludeTables(*includeTablesFlag...),
 			dbverify.ExcludeTables(*excludeTablesFlag...),
 			dbverify.IncludeSchemas(*includeSchemasFlag...),
 			dbverify.ExcludeSchemas(*excludeSchemasFlag...),
 		)
+		if err != nil {
+			return err
+		}
+		report.WriteAsTable(cmd.OutOrStdout())
+		return nil
 	},
 }

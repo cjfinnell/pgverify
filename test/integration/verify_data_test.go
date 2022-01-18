@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -229,9 +230,11 @@ func TestVerifyData(t *testing.T) {
 		}
 		targets = append(targets, db.config)
 	}
-	//includeTables = tableNames
-	assert.NoError(t, dbverify.Verify(
+
+	report, err := dbverify.Verify(
 		targets,
 		dbverify.ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
-	))
+	)
+	assert.NoError(t, err)
+	report.WriteAsTable(os.Stdout)
 }
