@@ -206,8 +206,6 @@ func TestVerifyData(t *testing.T) {
 
 	// Act
 	targets := []pgx.ConnConfig{}
-	var includeTables, excludeTables, includeSchemas, excludeSchemas []string
-
 	for _, db := range dbs {
 		// Create db and connect
 		_, port, err := createContainer(t, ctx, db.image, db.port, db.env, db.cmd)
@@ -232,6 +230,8 @@ func TestVerifyData(t *testing.T) {
 		targets = append(targets, db.config)
 	}
 	//includeTables = tableNames
-	excludeSchemas = append(excludeSchemas, "pg_catalog", "pg_extension", "information_schema", "crdb_internal")
-	assert.NoError(t, dbverify.Verify(targets, includeTables, excludeTables, includeSchemas, excludeSchemas))
+	assert.NoError(t, dbverify.Verify(
+		targets,
+		dbverify.ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
+	))
 }

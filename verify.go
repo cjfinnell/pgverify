@@ -18,7 +18,12 @@ var (
 	finalResultsMutex = &sync.Mutex{}
 )
 
-func Verify(targets []pgx.ConnConfig, includeTables, excludeTables, includeSchemas, excludeSchemas []string) error {
+func Verify(targets []pgx.ConnConfig, opts ...Option) error {
+	c := NewConfig(opts...)
+	return c.Verify(targets)
+}
+
+func (c Config) Verify(targets []pgx.ConnConfig) error {
 	log.SetLevel(log.DebugLevel)
 	log.SetOutput(os.Stderr)
 	log.Infof("Verifying %d targets", len(targets))
@@ -38,7 +43,7 @@ func Verify(targets []pgx.ConnConfig, includeTables, excludeTables, includeSchem
 	var doneChannels []chan struct{}
 	for i, conn := range conns {
 		done := make(chan struct{})
-		go generateTableHashes(i, conn, includeTables, excludeTables, includeSchemas, excludeSchemas, done)
+		go generateTableHashes(i, conn, c.IncludeTables, c.ExcludeTables, c.IncludeSchemas, c.ExcludeSchemas, done)
 		doneChannels = append(doneChannels, done)
 	}
 	for _, done := range doneChannels {
@@ -72,22 +77,22 @@ type column struct {
 	dataType string
 }
 
-func generateTableHashes(targetIndex int, conn *pgx.Conn, explicitTables, excludeTables, explicitSchemas, excludeSchemas []string, done chan struct{}) {
+func generateTableHashes(targetIndex int, conn *pgx.Conn, includeTables, excludeTables, includeSchemas, excludeSchemas []string, done chan struct{}) {
 	logger := log.WithField("target", targetIndex)
 	schemaTableHashes := make(map[string]map[string]string)
 
-	if len(explicitTables) == 0 {
+	if len(includeTables) == 0 {
 		logger.Info("No explicit tables specified, querying all tables")
 		query := "SELECT table_schema, table_name FROM information_schema.tables"
 		whereClauses := []string{}
 
-		if len(explicitSchemas) > 0 {
+		if len(includeSchemas) > 0 {
 			logger.Info("Explicit schemas specified, filtering tables")
 			// Only query these schemas
 			whereClause := "table_schema IN ("
-			for i := 0; i < len(explicitSchemas); i++ {
-				whereClause += fmt.Sprintf("'%s'", explicitSchemas[i])
-				if i < len(explicitSchemas)-1 {
+			for i := 0; i < len(includeSchemas); i++ {
+				whereClause += fmt.Sprintf("'%s'", includeSchemas[i])
+				if i < len(includeSchemas)-1 {
 					whereClause += ", "
 				}
 			}

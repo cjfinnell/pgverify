@@ -39,6 +39,12 @@ var rootCmd = &cobra.Command{
 			targets = append(targets, connConfig)
 		}
 
-		return dbverify.Verify(targets, *includeTablesFlag, *excludeTablesFlag, *includeSchemasFlag, *excludeSchemasFlag)
+		return dbverify.Verify(
+			targets,
+			dbverify.IncludeTables(*includeTablesFlag...),
+			dbverify.ExcludeTables(*excludeTablesFlag...),
+			dbverify.IncludeSchemas(*includeSchemasFlag...),
+			dbverify.ExcludeSchemas(*excludeSchemasFlag...),
+		)
 	},
 }
