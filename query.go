@@ -67,7 +67,7 @@ func buildGetColumsQuery(schemaName, tableName string) string {
 func buildGetHashQuery(schemaName, tableName string, columns []column) string {
 	var columnsWithCasting []string
 	for _, column := range columns {
-		columnsWithCasting = append(columnsWithCasting, column.String())
+		columnsWithCasting = append(columnsWithCasting, column.CastToText())
 	}
 
 	return fmt.Sprintf(`
