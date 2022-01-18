@@ -2,7 +2,6 @@ package dbverify
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 	"sync"
 
@@ -77,72 +76,24 @@ func (c Config) generateTableHashes(targetIndex int, conn *pgx.Conn, includeTabl
 	logger := c.Logger.WithField("target", targetIndex)
 	schemaTableHashes := make(map[string]map[string]string)
 
-	if len(includeTables) == 0 {
-		logger.Info("No explicit tables specified, querying all tables")
-		query := "SELECT table_schema, table_name FROM information_schema.tables"
-		whereClauses := []string{}
-
-		if len(includeSchemas) > 0 {
-			logger.Info("Explicit schemas specified, filtering tables")
-			// Only query these schemas
-			whereClause := "table_schema IN ("
-			for i := 0; i < len(includeSchemas); i++ {
-				whereClause += fmt.Sprintf("'%s'", includeSchemas[i])
-				if i < len(includeSchemas)-1 {
-					whereClause += ", "
-				}
-			}
-			whereClause += ")"
-			whereClauses = append(whereClauses, whereClause)
-		} else if len(excludeSchemas) > 0 {
-			logger.Info("Excluded schemas specified, filtering tables")
-			// Query all but these schemas
-			whereClause := "table_schema NOT IN ("
-			for i := 0; i < len(excludeSchemas); i++ {
-				whereClause += fmt.Sprintf("'%s'", excludeSchemas[i])
-				if i < len(excludeSchemas)-1 {
-					whereClause += ", "
-				}
-			}
-			whereClause += ")"
-			whereClauses = append(whereClauses, whereClause)
-		}
-
-		if len(excludeTables) > 0 {
-			logger.Info("Excluded tables specified, filtering tables")
-			whereClause := "table_name NOT IN ("
-			for i := 0; i < len(excludeTables); i++ {
-				whereClause += fmt.Sprintf("'%s'", excludeTables[i])
-				if i < len(excludeTables)-1 {
-					whereClause += ", "
-				}
-			}
-			whereClause += ")"
-			whereClauses = append(whereClauses, whereClause)
-		}
-
-		if len(whereClauses) > 0 {
-			query += " WHERE " + strings.Join(whereClauses, " AND ")
-		}
-		rows, err := conn.Query(query)
+	rows, err := conn.Query(c.buildGetTablesQuery())
+	if err != nil {
+		logger.WithError(err).Error("Failed to query for tables")
+		close(done)
+		return
+	}
+	for rows.Next() {
+		var schema, table pgtype.Text
+		err := rows.Scan(&schema, &table)
 		if err != nil {
-			logger.WithError(err).Error("Failed to query for tables")
+			logger.WithError(err).Error("Failed to scan row data for table names")
 			close(done)
 			return
 		}
-		for rows.Next() {
-			var schema, table pgtype.Text
-			err := rows.Scan(&schema, &table)
-			if err != nil {
-				logger.WithError(err).Error("Failed to scan row data for table names")
-				close(done)
-				return
-			}
-			if _, ok := schemaTableHashes[schema.String]; !ok {
-				schemaTableHashes[schema.String] = make(map[string]string)
-			}
-			schemaTableHashes[schema.String][table.String] = ""
+		if _, ok := schemaTableHashes[schema.String]; !ok {
+			schemaTableHashes[schema.String] = make(map[string]string)
 		}
+		schemaTableHashes[schema.String][table.String] = ""
 	}
 
 	for schemaName, tables := range schemaTableHashes {
@@ -167,10 +118,6 @@ func (c Config) generateTableHashes(targetIndex int, conn *pgx.Conn, includeTabl
 				tableColumns = append(tableColumns, column{columnName.String, dataType.String})
 			}
 			tableLogger.Infof("Found %d columns", len(tableColumns))
-
-			sort.Slice(tableColumns, func(i, j int) bool {
-				return tableColumns[i].name < tableColumns[j].name
-			})
 
 			var columnsWithCasting []string
 			for _, column := range tableColumns {
@@ -213,6 +160,61 @@ func (c Config) generateTableHashes(targetIndex int, conn *pgx.Conn, includeTabl
 	finalResultsMutex.Unlock()
 	logger.Info("Table hashes computed")
 	close(done)
+}
+
+func (c Config) buildGetTablesQuery() string {
+	query := "SELECT table_schema, table_name FROM information_schema.tables"
+	whereClauses := []string{}
+
+	if len(c.IncludeSchemas) > 0 {
+		whereClause := "table_schema IN ("
+		for i := 0; i < len(c.IncludeSchemas); i++ {
+			whereClause += fmt.Sprintf("'%s'", c.IncludeSchemas[i])
+			if i < len(c.IncludeSchemas)-1 {
+				whereClause += ", "
+			}
+		}
+		whereClause += ")"
+		whereClauses = append(whereClauses, whereClause)
+	} else if len(c.ExcludeSchemas) > 0 {
+		whereClause := "table_schema NOT IN ("
+		for i := 0; i < len(c.ExcludeSchemas); i++ {
+			whereClause += fmt.Sprintf("'%s'", c.ExcludeSchemas[i])
+			if i < len(c.ExcludeSchemas)-1 {
+				whereClause += ", "
+			}
+		}
+		whereClause += ")"
+		whereClauses = append(whereClauses, whereClause)
+	}
+
+	if len(c.IncludeTables) > 0 {
+		whereClause := "table_name IN ("
+		for i := 0; i < len(c.IncludeTables); i++ {
+			whereClause += fmt.Sprintf("'%s'", c.IncludeTables[i])
+			if i < len(c.IncludeTables)-1 {
+				whereClause += ", "
+			}
+		}
+		whereClause += ")"
+		whereClauses = append(whereClauses, whereClause)
+	} else if len(c.ExcludeTables) > 0 {
+		whereClause := "table_name NOT IN ("
+		for i := 0; i < len(c.ExcludeTables); i++ {
+			whereClause += fmt.Sprintf("'%s'", c.ExcludeTables[i])
+			if i < len(c.ExcludeTables)-1 {
+				whereClause += ", "
+			}
+		}
+		whereClause += ")"
+		whereClauses = append(whereClauses, whereClause)
+	}
+
+	if len(whereClauses) > 0 {
+		query += " WHERE " + strings.Join(whereClauses, " AND ")
+	}
+
+	return query
 }
 
 func determineTypeCasting(col column) string {
