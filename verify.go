@@ -71,7 +71,7 @@ func (c Config) generateTableHashes(targetIndex int, conn *pgx.Conn, done chan s
 	logger := c.Logger.WithField("target", targetIndex)
 	schemaTableHashes := make(map[string]map[string]string)
 
-	rows, err := conn.Query(c.buildGetTablesQuery())
+	rows, err := conn.Query(buildGetTablesQuery(c.IncludeSchemas, c.ExcludeSchemas, c.IncludeTables, c.ExcludeTables))
 	if err != nil {
 		logger.WithError(err).Error("Failed to query for tables")
 		close(done)
@@ -95,11 +95,9 @@ func (c Config) generateTableHashes(targetIndex int, conn *pgx.Conn, done chan s
 		for tableName := range tables {
 			tableLogger := logger.WithField("table", tableName).WithField("schema", schemaName)
 			tableLogger.Info("Computing hash")
-			// Grab the column names/types
-			query := fmt.Sprintf("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '%s' AND table_schema = '%s'", tableName, schemaName)
-			rows, err := conn.Query(query)
+			rows, err := conn.Query(buildGetColumsQuery(schemaName, tableName))
 			if err != nil {
-				tableLogger.WithError(err).WithField("query", query).Error("Failed to query column names, data types")
+				tableLogger.WithError(err).Error("Failed to query column names, data types")
 				continue
 			}
 			var tableColumns []column
@@ -114,18 +112,8 @@ func (c Config) generateTableHashes(targetIndex int, conn *pgx.Conn, done chan s
 			}
 			tableLogger.Infof("Found %d columns", len(tableColumns))
 
-			var columnsWithCasting []string
-			for _, column := range tableColumns {
-				columnsWithCasting = append(columnsWithCasting, column.String())
-			}
-
 			var hash pgtype.Text
-			query = fmt.Sprintf(`
-		SELECT md5(string_agg(hash, ''))
-		FROM (SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash FROM "%s"."%s" ORDER BY 2) AS eachrow
-		GROUP BY grouper
-		`, strings.Join(columnsWithCasting, ", "), schemaName, tableName)
-			row := conn.QueryRow(query)
+			row := conn.QueryRow(buildGetHashQuery(schemaName, tableName, tableColumns))
 			err = row.Scan(&hash)
 			if err != nil {
 				switch err {
@@ -133,7 +121,7 @@ func (c Config) generateTableHashes(targetIndex int, conn *pgx.Conn, done chan s
 					tableLogger.Info("No rows found")
 					hash.String = "0"
 				default:
-					tableLogger.WithError(err).WithField("query", query).Error("Failed to compute hash")
+					tableLogger.WithError(err).Error("Failed to compute hash")
 					continue
 				}
 			}
@@ -155,59 +143,4 @@ func (c Config) generateTableHashes(targetIndex int, conn *pgx.Conn, done chan s
 	finalResultsMutex.Unlock()
 	logger.Info("Table hashes computed")
 	close(done)
-}
-
-func (c Config) buildGetTablesQuery() string {
-	query := "SELECT table_schema, table_name FROM information_schema.tables"
-	whereClauses := []string{}
-
-	if len(c.IncludeSchemas) > 0 {
-		whereClause := "table_schema IN ("
-		for i := 0; i < len(c.IncludeSchemas); i++ {
-			whereClause += fmt.Sprintf("'%s'", c.IncludeSchemas[i])
-			if i < len(c.IncludeSchemas)-1 {
-				whereClause += ", "
-			}
-		}
-		whereClause += ")"
-		whereClauses = append(whereClauses, whereClause)
-	} else if len(c.ExcludeSchemas) > 0 {
-		whereClause := "table_schema NOT IN ("
-		for i := 0; i < len(c.ExcludeSchemas); i++ {
-			whereClause += fmt.Sprintf("'%s'", c.ExcludeSchemas[i])
-			if i < len(c.ExcludeSchemas)-1 {
-				whereClause += ", "
-			}
-		}
-		whereClause += ")"
-		whereClauses = append(whereClauses, whereClause)
-	}
-
-	if len(c.IncludeTables) > 0 {
-		whereClause := "table_name IN ("
-		for i := 0; i < len(c.IncludeTables); i++ {
-			whereClause += fmt.Sprintf("'%s'", c.IncludeTables[i])
-			if i < len(c.IncludeTables)-1 {
-				whereClause += ", "
-			}
-		}
-		whereClause += ")"
-		whereClauses = append(whereClauses, whereClause)
-	} else if len(c.ExcludeTables) > 0 {
-		whereClause := "table_name NOT IN ("
-		for i := 0; i < len(c.ExcludeTables); i++ {
-			whereClause += fmt.Sprintf("'%s'", c.ExcludeTables[i])
-			if i < len(c.ExcludeTables)-1 {
-				whereClause += ", "
-			}
-		}
-		whereClause += ")"
-		whereClauses = append(whereClauses, whereClause)
-	}
-
-	if len(whereClauses) > 0 {
-		query += " WHERE " + strings.Join(whereClauses, " AND ")
-	}
-
-	return query
 }
