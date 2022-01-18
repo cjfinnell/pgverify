@@ -1,0 +1,29 @@
+version: 2.1
+orbs:
+  ucheck: udacity/ucheck@1
+
+executors:
+  go:
+    docker:
+      - image: cimg/go:1.17
+
+jobs:
+  lint:
+    executor: go
+    steps:
+      - checkout
+      - run:
+          name: Run linter
+          command: make lint
+
+workflows:
+  version: 2
+  test_build_release:
+    jobs:
+      - lint:
+          context: org-global
+      - ucheck/ucheck:
+          context: org-global
+          filters:
+            tags:
+              only: /^ucheck-.*/
