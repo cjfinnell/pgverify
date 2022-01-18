@@ -22,8 +22,3 @@ workflows:
     jobs:
       - lint:
           context: org-global
-      - ucheck/ucheck:
-          context: org-global
-          filters:
-            tags:
-              only: /^ucheck-.*/
