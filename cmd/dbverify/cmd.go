@@ -10,9 +10,11 @@ import (
 
 // Flags
 var (
-	targetsFlag       *[]string
-	includeTablesFlag *[]string
-	excludeTablesFlag *[]string
+	targetsFlag        *[]string
+	includeTablesFlag  *[]string
+	excludeTablesFlag  *[]string
+	includeSchemasFlag *[]string
+	excludeSchemasFlag *[]string
 )
 
 func init() {
@@ -21,6 +23,8 @@ func init() {
 
 	includeTablesFlag = rootCmd.Flags().StringSlice("include-tables", []string{}, "tables to verify (comma separated)")
 	excludeTablesFlag = rootCmd.Flags().StringSlice("exclude-tables", []string{}, "tables to skip verification, ignored if '--include-tables' used (comma separated)")
+	includeSchemasFlag = rootCmd.Flags().StringSlice("include-schemas", []string{}, "schemas to verify (comma separated)")
+	excludeSchemasFlag = rootCmd.Flags().StringSlice("exclude-schemas", []string{}, "schemas to skip verification, ignored if '--include-schemas' used (comma separated)")
 }
 
 var rootCmd = &cobra.Command{
@@ -35,6 +39,6 @@ var rootCmd = &cobra.Command{
 			targets = append(targets, connConfig)
 		}
 
-		return dbverify.Verify(targets, *includeTablesFlag, *excludeTablesFlag)
+		return dbverify.Verify(targets, *includeTablesFlag, *excludeTablesFlag, *includeSchemasFlag, *excludeSchemasFlag)
 	},
 }
