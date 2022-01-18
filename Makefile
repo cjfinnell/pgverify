@@ -1,10 +1,10 @@
 .PHONY: build
 build:
-	go build -o dbverify ./cmd/dbverify
+	go build -o pgverify ./cmd/pgverify
 
 .PHONY: clean
 clean:
-	@rm -f dbverify ||:
+	@rm -f pgverify ||:
 	@go clean -testcache ||:
 
 .PHONY: lint

@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cjfinnell/dbverify"
+	"github.com/cjfinnell/pgverify"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx"
 	"github.com/stretchr/testify/assert"
@@ -231,9 +231,9 @@ func TestVerifyData(t *testing.T) {
 		targets = append(targets, db.config)
 	}
 
-	report, err := dbverify.Verify(
+	report, err := pgverify.Verify(
 		targets,
-		dbverify.ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
+		pgverify.ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
 	)
 	assert.NoError(t, err)
 	report.WriteAsTable(os.Stdout)

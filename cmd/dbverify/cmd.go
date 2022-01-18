@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/cjfinnell/dbverify"
+	"github.com/cjfinnell/pgverify"
 	"github.com/jackc/pgx"
 	"github.com/spf13/cobra"
 )
@@ -28,7 +28,7 @@ func init() {
 }
 
 var rootCmd = &cobra.Command{
-	Use: "dbverify",
+	Use: "pgverify",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var targets []pgx.ConnConfig
 		for _, target := range *targetsFlag {
@@ -39,12 +39,12 @@ var rootCmd = &cobra.Command{
 			targets = append(targets, connConfig)
 		}
 
-		report, err := dbverify.Verify(
+		report, err := pgverify.Verify(
 			targets,
-			dbverify.IncludeTables(*includeTablesFlag...),
-			dbverify.ExcludeTables(*excludeTablesFlag...),
-			dbverify.IncludeSchemas(*includeSchemasFlag...),
-			dbverify.ExcludeSchemas(*excludeSchemasFlag...),
+			pgverify.IncludeTables(*includeTablesFlag...),
+			pgverify.ExcludeTables(*excludeTablesFlag...),
+			pgverify.IncludeSchemas(*includeSchemasFlag...),
+			pgverify.ExcludeSchemas(*excludeSchemasFlag...),
 		)
 		if err != nil {
 			return err

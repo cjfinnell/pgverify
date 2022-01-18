@@ -1,4 +1,4 @@
-package dbverify
+package pgverify
 
 import (
 	"fmt"

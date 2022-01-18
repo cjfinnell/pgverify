@@ -1,4 +1,4 @@
-module github.com/cjfinnell/dbverify
+module github.com/cjfinnell/pgverify
 
 go 1.17
 

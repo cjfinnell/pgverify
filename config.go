@@ -1,4 +1,4 @@
-package dbverify
+package pgverify
 
 import log "github.com/sirupsen/logrus"
 
