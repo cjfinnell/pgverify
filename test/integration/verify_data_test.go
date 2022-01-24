@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -251,8 +252,9 @@ func TestVerifyData(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := pgverify.Verify(targets, tc.opts...)
+			results, err := pgverify.Verify(targets, tc.opts...)
 			assert.NoError(t, err)
+			results.WriteAsTable(os.Stdout)
 		})
 	}
 }
