@@ -15,6 +15,7 @@ var (
 	excludeTablesFlag  *[]string
 	includeSchemasFlag *[]string
 	excludeSchemasFlag *[]string
+	strategyFlag       *string
 )
 
 func init() {
@@ -25,6 +26,7 @@ func init() {
 	excludeTablesFlag = rootCmd.Flags().StringSlice("exclude-tables", []string{}, "tables to skip verification, ignored if '--include-tables' used (comma separated)")
 	includeSchemasFlag = rootCmd.Flags().StringSlice("include-schemas", []string{}, "schemas to verify (comma separated)")
 	excludeSchemasFlag = rootCmd.Flags().StringSlice("exclude-schemas", []string{}, "schemas to skip verification, ignored if '--include-schemas' used (comma separated)")
+	strategyFlag = rootCmd.Flags().StringP("strategy", "s", pgverify.StrategyFull, "strategy to use for verification (default: 'full')")
 }
 
 var rootCmd = &cobra.Command{
@@ -45,6 +47,7 @@ var rootCmd = &cobra.Command{
 			pgverify.ExcludeTables(*excludeTablesFlag...),
 			pgverify.IncludeSchemas(*includeSchemasFlag...),
 			pgverify.ExcludeSchemas(*excludeSchemasFlag...),
+			pgverify.WithStrategy(*strategyFlag),
 		)
 		report.WriteAsTable(cmd.OutOrStdout())
 		return err

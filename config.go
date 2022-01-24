@@ -2,11 +2,17 @@ package pgverify
 
 import log "github.com/sirupsen/logrus"
 
+const (
+	StrategyFull = "full"
+)
+
 type Config struct {
 	IncludeTables  []string
 	ExcludeTables  []string
 	IncludeSchemas []string
 	ExcludeSchemas []string
+
+	Strategy string
 
 	Logger *log.Logger
 }
@@ -26,6 +32,7 @@ func NewConfig(opts ...Option) Config {
 	c := Config{}
 	defaultOpts := []Option{
 		WithLogger(log.StandardLogger()),
+		WithStrategy(StrategyFull),
 	}
 	for _, opt := range append(defaultOpts, opts...) {
 		opt.apply(&c)
@@ -60,5 +67,11 @@ func ExcludeTables(tables ...string) optionFunc {
 func IncludeTables(tables ...string) optionFunc {
 	return func(c *Config) {
 		c.IncludeTables = tables
+	}
+}
+
+func WithStrategy(strategy string) optionFunc {
+	return func(c *Config) {
+		c.Strategy = strategy
 	}
 }
