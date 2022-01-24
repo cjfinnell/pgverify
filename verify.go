@@ -20,6 +20,10 @@ func Verify(targets []pgx.ConnConfig, opts ...Option) (Results, error) {
 }
 
 func (c Config) Verify(targets []pgx.ConnConfig) (Results, error) {
+	err := c.Validate()
+	if err != nil {
+		return finalResults, err
+	}
 	c.Logger.Infof("Verifying %d targets", len(targets))
 
 	// First check that we can connect to every specified target database.
