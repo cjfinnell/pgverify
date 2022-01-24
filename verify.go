@@ -114,8 +114,15 @@ func (c Config) generateTableHashes(targetHost string, conn *pgx.Conn, done chan
 			}
 			tableLogger.Infof("Found %d columns", len(tableColumns))
 
+			var query string
+			switch c.Strategy {
+			case StrategyFull:
+				query = buildGetHashQuery(schemaName, tableName, tableColumns)
+			}
+
+			row := conn.QueryRow(query)
+
 			var hash pgtype.Text
-			row := conn.QueryRow(buildGetHashQuery(schemaName, tableName, tableColumns))
 			err = row.Scan(&hash)
 			if err != nil {
 				switch err {
