@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -231,10 +230,29 @@ func TestVerifyData(t *testing.T) {
 		targets = append(targets, db.config)
 	}
 
-	report, err := pgverify.Verify(
-		targets,
-		pgverify.ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
-	)
-	assert.NoError(t, err)
-	report.WriteAsTable(os.Stdout)
+	// Test different verification strategies
+	for _, tc := range []struct {
+		name string
+		opts []pgverify.Option
+	}{
+		{
+			name: "full",
+			opts: []pgverify.Option{
+				pgverify.WithStrategy(pgverify.StrategyFull),
+				pgverify.ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
+			},
+		},
+		{
+			name: "bookend",
+			opts: []pgverify.Option{
+				pgverify.WithStrategy(pgverify.StrategyBookend),
+				pgverify.ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := pgverify.Verify(targets, tc.opts...)
+			assert.NoError(t, err)
+		})
+	}
 }
