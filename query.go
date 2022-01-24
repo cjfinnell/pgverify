@@ -64,7 +64,7 @@ func buildGetColumsQuery(schemaName, tableName string) string {
 	return fmt.Sprintf("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '%s' AND table_schema = '%s'", tableName, schemaName)
 }
 
-func buildGetHashQuery(schemaName, tableName string, columns []column) string {
+func buildFullHashQuery(schemaName, tableName string, columns []column) string {
 	var columnsWithCasting []string
 	for _, column := range columns {
 		columnsWithCasting = append(columnsWithCasting, column.CastToText())
@@ -75,4 +75,35 @@ func buildGetHashQuery(schemaName, tableName string, columns []column) string {
 		FROM (SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash FROM "%s"."%s" ORDER BY 2) AS eachrow
 		GROUP BY grouper
 		`, strings.Join(columnsWithCasting, ", "), schemaName, tableName)
+}
+
+func buildBookendHashQuery(schemaName, tableName string, columns []column, limit int) string {
+	var columnsWithCasting []string
+	for _, column := range columns {
+		columnsWithCasting = append(columnsWithCasting, column.CastToText())
+	}
+	allColumnsWithCasting := strings.Join(columnsWithCasting, ", ")
+
+	return fmt.Sprintf(`
+		SELECT md5(CONCAT(starthash::TEXT, endhash::TEXT))
+		FROM (
+			SELECT md5(string_agg(hash, ''))
+			FROM (
+				SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash
+				FROM "%s"."%s"
+				ORDER BY 2 ASC
+				LIMIT %d
+			) AS eachrow
+			GROUP BY grouper
+		) as starthash, (
+			SELECT md5(string_agg(hash, ''))
+			FROM (
+				SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash
+				FROM "%s"."%s"
+				ORDER BY 2 DESC
+				LIMIT %d
+			) AS eachrow
+			GROUP BY grouper
+		) as endhash
+		`, allColumnsWithCasting, schemaName, tableName, limit, allColumnsWithCasting, schemaName, tableName, limit)
 }

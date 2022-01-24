@@ -7,7 +7,8 @@ import (
 )
 
 const (
-	StrategyFull = "full"
+	StrategyFull    = "full"
+	StrategyBookend = "bookend"
 )
 
 type Config struct {
@@ -16,7 +17,8 @@ type Config struct {
 	IncludeSchemas []string
 	ExcludeSchemas []string
 
-	Strategy string
+	Strategy     string
+	BookendLimit int
 
 	Logger *log.Logger
 }
@@ -37,6 +39,7 @@ func NewConfig(opts ...Option) Config {
 	defaultOpts := []Option{
 		WithLogger(log.StandardLogger()),
 		WithStrategy(StrategyFull),
+		WithBookendLimit(1000),
 	}
 	for _, opt := range append(defaultOpts, opts...) {
 		opt.apply(&c)
@@ -47,7 +50,7 @@ func NewConfig(opts ...Option) Config {
 func (c Config) Validate() error {
 	switch c.Strategy {
 	case StrategyFull:
-		// valid
+	case StrategyBookend:
 	default:
 		return fmt.Errorf("invalid strategy: %s", c.Strategy)
 	}
@@ -87,5 +90,11 @@ func IncludeTables(tables ...string) optionFunc {
 func WithStrategy(strategy string) optionFunc {
 	return func(c *Config) {
 		c.Strategy = strategy
+	}
+}
+
+func WithBookendLimit(limit int) optionFunc {
+	return func(c *Config) {
+		c.BookendLimit = limit
 	}
 }

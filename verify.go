@@ -117,7 +117,9 @@ func (c Config) generateTableHashes(targetHost string, conn *pgx.Conn, done chan
 			var query string
 			switch c.Strategy {
 			case StrategyFull:
-				query = buildGetHashQuery(schemaName, tableName, tableColumns)
+				query = buildFullHashQuery(schemaName, tableName, tableColumns)
+			case StrategyBookend:
+				query = buildBookendHashQuery(schemaName, tableName, tableColumns, c.BookendLimit)
 			}
 
 			row := conn.QueryRow(query)
