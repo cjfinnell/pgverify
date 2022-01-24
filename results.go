@@ -3,19 +3,30 @@ package pgverify
 import (
 	"io"
 	"sort"
+	"sync"
 
 	"github.com/olekukonko/tablewriter"
 )
 
-// results[table][hash] = [target1, target2, ...]
-type Results map[string]map[string][]string
+type Results struct {
+	// Results.Hashes[table][hash] = [target1, target2, ...]
+	Hashes map[string]map[string][]string
+	Mutex  *sync.Mutex
+}
+
+func NewResults() *Results {
+	return &Results{
+		Hashes: make(map[string]map[string][]string),
+		Mutex:  &sync.Mutex{},
+	}
+}
 
 func (r Results) WriteAsTable(writer io.Writer) {
 	output := tablewriter.NewWriter(writer)
 	output.SetHeader([]string{"Schema.Table", "Hash", "Targets"})
 
 	var rows [][]string
-	for table, hashes := range r {
+	for table, hashes := range r.Hashes {
 		for hash, targets := range hashes {
 			sort.Strings(targets)
 			for _, target := range targets {

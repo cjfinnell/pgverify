@@ -3,23 +3,19 @@ package pgverify
 import (
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgtype"
 )
 
-var (
-	finalResults      = make(Results)
-	finalResultsMutex = &sync.Mutex{}
-)
-
-func Verify(targets []pgx.ConnConfig, opts ...Option) (Results, error) {
+func Verify(targets []pgx.ConnConfig, opts ...Option) (*Results, error) {
 	c := NewConfig(opts...)
 	return c.Verify(targets)
 }
 
-func (c Config) Verify(targets []pgx.ConnConfig) (Results, error) {
+func (c Config) Verify(targets []pgx.ConnConfig) (*Results, error) {
+	finalResults := NewResults()
+
 	err := c.Validate()
 	if err != nil {
 		return finalResults, err
@@ -41,7 +37,7 @@ func (c Config) Verify(targets []pgx.ConnConfig) (Results, error) {
 	var doneChannels []chan struct{}
 	for i, conn := range conns {
 		done := make(chan struct{})
-		go c.generateTableHashes(targets[i].Host, conn, done)
+		go c.generateTableHashes(targets[i].Host, conn, finalResults, done)
 		doneChannels = append(doneChannels, done)
 	}
 	for _, done := range doneChannels {
@@ -50,7 +46,7 @@ func (c Config) Verify(targets []pgx.ConnConfig) (Results, error) {
 
 	// Compare final results
 	var hashErrors []string
-	for table, hashes := range finalResults {
+	for table, hashes := range finalResults.Hashes {
 		if len(hashes) > 1 {
 			hashErrors = append(hashErrors, fmt.Sprintf("table %s has multiple hashes: %v", table, hashes))
 		}
@@ -69,7 +65,7 @@ func (c Config) Verify(targets []pgx.ConnConfig) (Results, error) {
 	return finalResults, nil
 }
 
-func (c Config) generateTableHashes(targetHost string, conn *pgx.Conn, done chan struct{}) {
+func (c Config) generateTableHashes(targetHost string, conn *pgx.Conn, finalResults *Results, done chan struct{}) {
 	logger := c.Logger.WithField("target", targetHost)
 	schemaTableHashes := make(map[string]map[string]string)
 
@@ -141,17 +137,17 @@ func (c Config) generateTableHashes(targetHost string, conn *pgx.Conn, done chan
 		}
 	}
 
-	finalResultsMutex.Lock()
+	finalResults.Mutex.Lock()
 	for schema, tables := range schemaTableHashes {
 		for table, hash := range tables {
 			tableFullName := fmt.Sprintf("%s.%s", schema, table)
-			if _, ok := finalResults[tableFullName]; !ok {
-				finalResults[tableFullName] = make(map[string][]string)
+			if _, ok := finalResults.Hashes[tableFullName]; !ok {
+				finalResults.Hashes[tableFullName] = make(map[string][]string)
 			}
-			finalResults[tableFullName][hash] = append(finalResults[tableFullName][hash], targetHost)
+			finalResults.Hashes[tableFullName][hash] = append(finalResults.Hashes[tableFullName][hash], targetHost)
 		}
 	}
-	finalResultsMutex.Unlock()
+	finalResults.Mutex.Unlock()
 	logger.Info("Table hashes computed")
 	close(done)
 }
