@@ -1,6 +1,10 @@
 package pgverify
 
-import log "github.com/sirupsen/logrus"
+import (
+	"fmt"
+
+	log "github.com/sirupsen/logrus"
+)
 
 const (
 	StrategyFull = "full"
@@ -38,6 +42,16 @@ func NewConfig(opts ...Option) Config {
 		opt.apply(&c)
 	}
 	return c
+}
+
+func (c Config) Validate() error {
+	switch c.Strategy {
+	case StrategyFull:
+		// valid
+	default:
+		return fmt.Errorf("invalid strategy: %s", c.Strategy)
+	}
+	return nil
 }
 
 func WithLogger(logger *log.Logger) optionFunc {
