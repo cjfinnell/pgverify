@@ -36,8 +36,14 @@ func (c Config) Verify(targets []pgx.ConnConfig) (*Results, error) {
 	// Then query each target database in parallel to generate table hashes.
 	var doneChannels []chan struct{}
 	for i, conn := range conns {
+		var targetName string
+		if len(c.Aliases) == len(targets) {
+			targetName = c.Aliases[i]
+		} else {
+			targetName = targets[i].Host
+		}
 		done := make(chan struct{})
-		go c.generateTableHashes(targets[i].Host, conn, finalResults, done)
+		go c.generateTableHashes(targetName, conn, finalResults, done)
 		doneChannels = append(doneChannels, done)
 	}
 	for _, done := range doneChannels {
