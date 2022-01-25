@@ -1,6 +1,7 @@
 package pgverify
 
 import (
+	"fmt"
 	"io"
 	"sort"
 	"sync"
@@ -14,10 +15,29 @@ type Results struct {
 	Mutex  *sync.Mutex
 }
 
+// SingleResult represents the verification result from a single target
+// result[schema][table] = hash
+type SingleResult map[string]map[string]string
+
 func NewResults() *Results {
 	return &Results{
 		Hashes: make(map[string]map[string][]string),
 		Mutex:  &sync.Mutex{},
+	}
+}
+
+func (r *Results) AddResult(targetName string, schemaTableHashes SingleResult) {
+	r.Mutex.Lock()
+	defer r.Mutex.Unlock()
+
+	for schema, tables := range schemaTableHashes {
+		for table, hash := range tables {
+			tableFullName := fmt.Sprintf("%s.%s", schema, table)
+			if _, ok := r.Hashes[tableFullName]; !ok {
+				r.Hashes[tableFullName] = make(map[string][]string)
+			}
+			r.Hashes[tableFullName][hash] = append(r.Hashes[tableFullName][hash], targetName)
+		}
 	}
 }
 

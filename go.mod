@@ -10,6 +10,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/jackc/pgx v3.6.2+incompatible
 	github.com/olekukonko/tablewriter v0.0.5
+	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.7.0
@@ -116,7 +117,6 @@ require (
 	github.com/opencontainers/image-spec v1.0.2 // indirect
 	github.com/pelletier/go-toml v1.9.4 // indirect
 	github.com/phayes/checkstyle v0.0.0-20170904204023-bfd46e6a821d // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/polyfloyd/go-errorlint v0.0.0-20210722154253-910bb7978349 // indirect
 	github.com/prometheus/client_golang v1.7.1 // indirect

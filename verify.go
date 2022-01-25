@@ -6,6 +6,8 @@ import (
 
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgtype"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 func Verify(targets []pgx.ConnConfig, opts ...Option) (*Results, error) {
@@ -71,30 +73,49 @@ func (c Config) Verify(targets []pgx.ConnConfig) (*Results, error) {
 	return finalResults, nil
 }
 
-func (c Config) generateTableHashes(targetHost string, conn *pgx.Conn, finalResults *Results, done chan struct{}) {
-	logger := c.Logger.WithField("target", targetHost)
-	schemaTableHashes := make(map[string]map[string]string)
+func (c Config) generateTableHashes(targetName string, conn *pgx.Conn, finalResults *Results, done chan struct{}) {
+	logger := c.Logger.WithField("target", targetName)
 
-	rows, err := conn.Query(buildGetTablesQuery(c.IncludeSchemas, c.ExcludeSchemas, c.IncludeTables, c.ExcludeTables))
+	schemaTableHashes, err := c.fetchTargetTables(logger, conn)
 	if err != nil {
-		logger.WithError(err).Error("Failed to query for tables")
+		logger.WithError(err).Error("failed to fetch target tables")
 		close(done)
 		return
+	}
+
+	schemaTableHashes, err = c.runVerificationTests(logger, conn, schemaTableHashes)
+	if err != nil {
+		logger.WithError(err).Error("failed to run verification tests")
+		close(done)
+		return
+	}
+
+	finalResults.AddResult(targetName, schemaTableHashes)
+	logger.Info("Table hashes computed")
+	close(done)
+}
+
+func (c Config) fetchTargetTables(logger *logrus.Entry, conn *pgx.Conn) (SingleResult, error) {
+	schemaTableHashes := make(SingleResult)
+	rows, err := conn.Query(buildGetTablesQuery(c.IncludeSchemas, c.ExcludeSchemas, c.IncludeTables, c.ExcludeTables))
+	if err != nil {
+		return schemaTableHashes, errors.Wrap(err, "failed to query for tables")
 	}
 	for rows.Next() {
 		var schema, table pgtype.Text
 		err := rows.Scan(&schema, &table)
 		if err != nil {
-			logger.WithError(err).Error("Failed to scan row data for table names")
-			close(done)
-			return
+			return schemaTableHashes, errors.Wrap(err, "failed to scan row data for table names")
 		}
 		if _, ok := schemaTableHashes[schema.String]; !ok {
 			schemaTableHashes[schema.String] = make(map[string]string)
 		}
 		schemaTableHashes[schema.String][table.String] = ""
 	}
+	return schemaTableHashes, nil
+}
 
+func (c Config) runVerificationTests(logger *logrus.Entry, conn *pgx.Conn, schemaTableHashes SingleResult) (SingleResult, error) {
 	for schemaName, tables := range schemaTableHashes {
 		for tableName := range tables {
 			tableLogger := logger.WithField("table", tableName).WithField("schema", schemaName)
@@ -142,18 +163,5 @@ func (c Config) generateTableHashes(targetHost string, conn *pgx.Conn, finalResu
 			tableLogger.Infof("Hash computed: %s", hash.String)
 		}
 	}
-
-	finalResults.Mutex.Lock()
-	for schema, tables := range schemaTableHashes {
-		for table, hash := range tables {
-			tableFullName := fmt.Sprintf("%s.%s", schema, table)
-			if _, ok := finalResults.Hashes[tableFullName]; !ok {
-				finalResults.Hashes[tableFullName] = make(map[string][]string)
-			}
-			finalResults.Hashes[tableFullName][hash] = append(finalResults.Hashes[tableFullName][hash], targetHost)
-		}
-	}
-	finalResults.Mutex.Unlock()
-	logger.Info("Table hashes computed")
-	close(done)
+	return schemaTableHashes, nil
 }
