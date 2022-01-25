@@ -143,6 +143,8 @@ func (c Config) runVerificationTests(logger *logrus.Entry, conn *pgx.Conn, schem
 				query = buildFullHashQuery(schemaName, tableName, tableColumns)
 			case StrategyBookend:
 				query = buildBookendHashQuery(schemaName, tableName, tableColumns, c.BookendLimit)
+			case StrategySparse:
+				query = buildSparseHashQuery(schemaName, tableName, tableColumns, c.SparseMod)
 			}
 
 			row := conn.QueryRow(query)

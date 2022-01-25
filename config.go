@@ -7,8 +7,13 @@ import (
 )
 
 const (
-	StrategyFull    = "full"
-	StrategyBookend = "bookend"
+	StrategyFull = "full"
+
+	StrategyBookend             = "bookend"
+	StrategyBookendDefaultLimit = 1000
+
+	StrategySparse           = "sparse"
+	StrategySparseDefaultMod = 10
 )
 
 type Config struct {
@@ -19,6 +24,7 @@ type Config struct {
 
 	Strategy     string
 	BookendLimit int
+	SparseMod    int
 
 	Aliases []string
 
@@ -41,7 +47,8 @@ func NewConfig(opts ...Option) Config {
 	defaultOpts := []Option{
 		WithLogger(log.StandardLogger()),
 		WithStrategy(StrategyFull),
-		WithBookendLimit(1000),
+		WithBookendLimit(StrategyBookendDefaultLimit),
+		WithSparseMod(StrategySparseDefaultMod),
 	}
 	for _, opt := range append(defaultOpts, opts...) {
 		opt.apply(&c)
@@ -53,6 +60,7 @@ func (c Config) Validate() error {
 	switch c.Strategy {
 	case StrategyFull:
 	case StrategyBookend:
+	case StrategySparse:
 	default:
 		return fmt.Errorf("invalid strategy: %s", c.Strategy)
 	}
@@ -98,6 +106,12 @@ func WithStrategy(strategy string) optionFunc {
 func WithBookendLimit(limit int) optionFunc {
 	return func(c *Config) {
 		c.BookendLimit = limit
+	}
+}
+
+func WithSparseMod(mod int) optionFunc {
+	return func(c *Config) {
+		c.SparseMod = mod
 	}
 }
 

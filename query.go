@@ -86,6 +86,39 @@ func buildFullHashQuery(schemaName, tableName string, columns []column) string {
 		`, strings.Join(columnsWithCasting, ", "), schemaName, tableName)
 }
 
+func buildSparseHashQuery(schemaName, tableName string, columns []column, sparseMod int) string {
+	var columnsWithCasting []string
+	var primaryKey column
+	for _, column := range columns {
+		columnsWithCasting = append(columnsWithCasting, column.CastToText())
+		if column.IsPrimaryKey() {
+			primaryKey = column
+		}
+	}
+
+	return fmt.Sprintf(`
+		SELECT md5(string_agg(hash, ''))
+		FROM (
+			SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash
+			FROM "%s"."%s"
+			WHERE %s in (
+				SELECT %s
+				FROM "%s"."%s"
+				WHERE ('x' || substr(md5(%s),1,16))::bit(64)::bigint %% %d = 0
+			)
+			ORDER BY 2
+		) AS eachrow
+		GROUP BY grouper
+		`,
+		strings.Join(columnsWithCasting, ", "),
+		schemaName, tableName,
+		primaryKey.name,
+		primaryKey.name,
+		schemaName, tableName,
+		primaryKey.CastToText(),
+		sparseMod)
+}
+
 func buildBookendHashQuery(schemaName, tableName string, columns []column, limit int) string {
 	var columnsWithCasting []string
 	for _, column := range columns {
