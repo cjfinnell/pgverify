@@ -11,6 +11,7 @@ import (
 // Flags
 var (
 	targetsFlag        *[]string
+	aliasesFlag        *[]string
 	includeTablesFlag  *[]string
 	excludeTablesFlag  *[]string
 	includeSchemasFlag *[]string
@@ -19,6 +20,7 @@ var (
 )
 
 func init() {
+	aliasesFlag = rootCmd.Flags().StringSlice("aliases", []string{}, "alias names for the supplied targets (comma separated)")
 	targetsFlag = rootCmd.Flags().StringSliceP("targets", "t", []string{}, "target postgresql-format database URIs (comma separated)")
 	rootCmd.MarkFlagRequired("targets") //nolint:errcheck
 
@@ -41,14 +43,19 @@ var rootCmd = &cobra.Command{
 			targets = append(targets, connConfig)
 		}
 
-		report, err := pgverify.Verify(
-			targets,
+		opts := []pgverify.Option{
 			pgverify.IncludeTables(*includeTablesFlag...),
 			pgverify.ExcludeTables(*excludeTablesFlag...),
 			pgverify.IncludeSchemas(*includeSchemasFlag...),
 			pgverify.ExcludeSchemas(*excludeSchemasFlag...),
 			pgverify.WithStrategy(*strategyFlag),
-		)
+		}
+
+		if len(*aliasesFlag) > 0 {
+			opts = append(opts, pgverify.WithAliases(*aliasesFlag))
+		}
+
+		report, err := pgverify.Verify(targets, opts...)
 		report.WriteAsTable(cmd.OutOrStdout())
 		return err
 	},

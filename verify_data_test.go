@@ -213,8 +213,10 @@ func TestVerifyData(t *testing.T) {
 	}
 
 	// Act
-	targets := []pgx.ConnConfig{}
+	var targets []pgx.ConnConfig
+	var aliases []string
 	for _, db := range dbs {
+		aliases = append(aliases, db.image)
 		// Create db and connect
 		_, port, err := createContainer(t, ctx, db.image, db.port, db.env, db.cmd)
 		assert.NoError(t, err)
@@ -247,19 +249,24 @@ func TestVerifyData(t *testing.T) {
 			name: "full",
 			opts: []Option{
 				WithStrategy(StrategyFull),
-				ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
 			},
 		},
 		{
 			name: "bookend",
 			opts: []Option{
 				WithStrategy(StrategyBookend),
-				ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
 			},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			results, err := Verify(targets, tc.opts...)
+			tc.opts = append(
+				tc.opts,
+				ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
+				WithAliases(aliases),
+			)
+			results, err := Verify(
+				targets,
+				tc.opts...)
 			assert.NoError(t, err)
 			results.WriteAsTable(os.Stdout)
 		})

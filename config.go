@@ -20,6 +20,8 @@ type Config struct {
 	Strategy     string
 	BookendLimit int
 
+	Aliases []string
+
 	Logger *log.Logger
 }
 
@@ -96,5 +98,11 @@ func WithStrategy(strategy string) optionFunc {
 func WithBookendLimit(limit int) optionFunc {
 	return func(c *Config) {
 		c.BookendLimit = limit
+	}
+}
+
+func WithAliases(aliases []string) optionFunc {
+	return func(c *Config) {
+		c.Aliases = aliases
 	}
 }
