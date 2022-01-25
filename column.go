@@ -6,8 +6,9 @@ import (
 )
 
 type column struct {
-	name     string
-	dataType string
+	name       string
+	dataType   string
+	constraint string
 }
 
 func (c column) CastToText() string {

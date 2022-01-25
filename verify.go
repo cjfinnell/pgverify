@@ -127,13 +127,13 @@ func (c Config) runVerificationTests(logger *logrus.Entry, conn *pgx.Conn, schem
 			}
 			var tableColumns []column
 			for rows.Next() {
-				var columnName, dataType pgtype.Text
-				err := rows.Scan(&columnName, &dataType)
+				var columnName, dataType, constraintName pgtype.Text
+				err := rows.Scan(&columnName, &dataType, &constraintName)
 				if err != nil {
 					tableLogger.WithError(err).Error("Failed to parse column names, data types from query response")
 					continue
 				}
-				tableColumns = append(tableColumns, column{columnName.String, dataType.String})
+				tableColumns = append(tableColumns, column{columnName.String, dataType.String, constraintName.String})
 			}
 			tableLogger.Infof("Found %d columns", len(tableColumns))
 
