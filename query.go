@@ -61,7 +61,16 @@ func buildGetTablesQuery(includeSchemas, excludeSchemas, includeTables, excludeT
 }
 
 func buildGetColumsQuery(schemaName, tableName string) string {
-	return fmt.Sprintf("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '%s' AND table_schema = '%s'", tableName, schemaName)
+	return fmt.Sprintf(`
+		SELECT c.column_name, c.data_type, k.constraint_name
+		FROM information_schema.columns as c
+			LEFT OUTER JOIN information_schema.key_column_usage as k ON (
+				c.column_name = k.column_name AND
+				c.table_name = k.table_name AND
+				c.table_schema = k.table_schema
+			)
+		WHERE c.table_name = '%s' AND c.table_schema = '%s'
+		`, tableName, schemaName)
 }
 
 func buildFullHashQuery(schemaName, tableName string, columns []column) string {
