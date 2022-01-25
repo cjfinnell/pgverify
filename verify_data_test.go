@@ -257,6 +257,12 @@ func TestVerifyData(t *testing.T) {
 				WithStrategy(StrategyBookend),
 			},
 		},
+		{
+			name: "sparse",
+			opts: []pgverify.Option{
+				pgverify.WithStrategy(pgverify.StrategySparse),
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.opts = append(

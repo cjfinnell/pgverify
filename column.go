@@ -11,6 +11,13 @@ type column struct {
 	constraint string
 }
 
+func (c column) IsPrimaryKey() bool {
+	if c.constraint == "primary" || strings.HasSuffix(c.constraint, "_pkey") {
+		return true
+	}
+	return false
+}
+
 func (c column) CastToText() string {
 	switch strings.ToLower(c.dataType) {
 	case "timestamp with time zone":

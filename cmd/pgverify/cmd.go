@@ -13,6 +13,7 @@ import (
 var (
 	aliasesFlag, excludeSchemasFlag, excludeTablesFlag, includeSchemasFlag, includeTablesFlag *[]string
 	logLevelFlag, strategyFlag                                                                *string
+	bookendLimitFlag, sparseModFlag                                                           *int
 )
 
 func init() {
@@ -24,6 +25,9 @@ func init() {
 
 	logLevelFlag = rootCmd.Flags().String("level", "info", "logging level")
 	strategyFlag = rootCmd.Flags().StringP("strategy", "s", pgverify.StrategyFull, "strategy to use for verification")
+
+	bookendLimitFlag = rootCmd.Flags().Int("bookend-limit", pgverify.StrategyBookendDefaultLimit, "only check the first and last N rows (with --strategy=bookend)")
+	sparseModFlag = rootCmd.Flags().Int("sparse-mod", pgverify.StrategySparseDefaultMod, "only check every Nth row (with --strategy=sparse)")
 }
 
 var rootCmd = &cobra.Command{
@@ -46,6 +50,8 @@ var rootCmd = &cobra.Command{
 			pgverify.IncludeSchemas(*includeSchemasFlag...),
 			pgverify.ExcludeSchemas(*excludeSchemasFlag...),
 			pgverify.WithStrategy(*strategyFlag),
+			pgverify.WithSparseMod(*sparseModFlag),
+			pgverify.WithBookendLimit(*bookendLimitFlag),
 		}
 
 		logger := log.New()
