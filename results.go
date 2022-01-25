@@ -71,6 +71,6 @@ func (r Results) WriteAsTable(writer io.Writer) {
 	for _, row := range rows {
 		output.Append(row)
 	}
-	output.SetAutoMergeCellsByColumnIndex([]int{0, 1})
+	output.SetAutoMergeCellsByColumnIndex([]int{0})
 	output.Render()
 }
