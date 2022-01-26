@@ -37,7 +37,7 @@ func (c Config) Verify(targets []pgx.ConnConfig) (*Results, error) {
 		defer conn.Close()
 		conns[i] = conn
 	}
-	finalResults = NewResults(targetNames)
+	finalResults = NewResults(targetNames, c.TestModes)
 
 	// Then query each target database in parallel to generate table hashes.
 	var doneChannels []chan struct{}
@@ -128,8 +128,9 @@ func (c Config) runVerificationTests(logger *logrus.Entry, conn *pgx.Conn, schem
 			tableLogger.Infof("Found %d columns", len(tableColumns))
 
 			for _, testMode := range c.TestModes {
+				testLogger := tableLogger.WithField("test", testMode)
 				var query string
-				switch c.TestModes[0] {
+				switch testMode {
 				case TestModeFull:
 					query = buildFullHashQuery(schemaName, tableName, tableColumns)
 				case TestModeBookend:
@@ -145,15 +146,15 @@ func (c Config) runVerificationTests(logger *logrus.Entry, conn *pgx.Conn, schem
 				if err != nil {
 					switch err {
 					case pgx.ErrNoRows:
-						tableLogger.Info("No rows found")
+						testLogger.Info("No rows found")
 						testOutput.String = "no rows"
 					default:
-						tableLogger.WithError(err).Error("Failed to compute hash")
+						testLogger.WithError(err).Error("Failed to compute hash")
 						continue
 					}
 				}
 				schemaTableHashes[schemaName][tableName][testMode] = testOutput.String
-				tableLogger.Infof("Hash computed: %s", testOutput.String)
+				testLogger.Infof("Hash computed: %s", testOutput.String)
 			}
 		}
 	}
