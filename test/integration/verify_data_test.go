@@ -240,6 +240,7 @@ func TestVerifyData(t *testing.T) {
 			pgverify.TestModeBookend,
 			pgverify.TestModeSparse,
 			pgverify.TestModeFull,
+			pgverify.TestModeRowCount,
 		),
 		pgverify.ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
 		pgverify.WithAliases(aliases),

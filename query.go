@@ -149,3 +149,7 @@ func buildBookendHashQuery(schemaName, tableName string, columns []column, limit
 		) as endhash
 		`, allColumnsWithCasting, schemaName, tableName, limit, allColumnsWithCasting, schemaName, tableName, limit)
 }
+
+func buildRowCountQuery(schemaName, tableName string) string {
+	return fmt.Sprintf(`SELECT count(*)::TEXT FROM "%s"."%s"`, schemaName, tableName)
+}

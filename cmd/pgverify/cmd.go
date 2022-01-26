@@ -30,6 +30,7 @@ func init() {
 			pgverify.TestModeFull,
 			pgverify.TestModeBookend,
 			pgverify.TestModeSparse,
+			pgverify.TestModeRowCount,
 		}, ", ")+")")
 
 	bookendLimitFlag = rootCmd.Flags().Int("bookend-limit", pgverify.TestModeBookendDefaultLimit, "only check the first and last N rows (with --tests=bookend)")

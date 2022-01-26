@@ -137,6 +137,8 @@ func (c Config) runVerificationTests(logger *logrus.Entry, conn *pgx.Conn, schem
 					query = buildBookendHashQuery(schemaName, tableName, tableColumns, c.BookendLimit)
 				case TestModeSparse:
 					query = buildSparseHashQuery(schemaName, tableName, tableColumns, c.SparseMod)
+				case TestModeRowCount:
+					query = buildRowCountQuery(schemaName, tableName)
 				}
 
 				row := conn.QueryRow(query)
