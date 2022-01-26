@@ -7,13 +7,13 @@ import (
 )
 
 const (
-	StrategyFull = "full"
+	TestModeFull = "full"
 
-	StrategyBookend             = "bookend"
-	StrategyBookendDefaultLimit = 1000
+	TestModeBookend             = "bookend"
+	TestModeBookendDefaultLimit = 1000
 
-	StrategySparse           = "sparse"
-	StrategySparseDefaultMod = 10
+	TestModeSparse           = "sparse"
+	TestModeSparseDefaultMod = 10
 )
 
 type Config struct {
@@ -22,7 +22,7 @@ type Config struct {
 	IncludeSchemas []string
 	ExcludeSchemas []string
 
-	Strategy     string
+	TestModes    []string
 	BookendLimit int
 	SparseMod    int
 
@@ -46,9 +46,9 @@ func NewConfig(opts ...Option) Config {
 	c := Config{}
 	defaultOpts := []Option{
 		WithLogger(log.StandardLogger()),
-		WithStrategy(StrategyFull),
-		WithBookendLimit(StrategyBookendDefaultLimit),
-		WithSparseMod(StrategySparseDefaultMod),
+		WithTests(TestModeFull),
+		WithBookendLimit(TestModeBookendDefaultLimit),
+		WithSparseMod(TestModeSparseDefaultMod),
 	}
 	for _, opt := range append(defaultOpts, opts...) {
 		opt.apply(&c)
@@ -57,12 +57,14 @@ func NewConfig(opts ...Option) Config {
 }
 
 func (c Config) Validate() error {
-	switch c.Strategy {
-	case StrategyFull:
-	case StrategyBookend:
-	case StrategySparse:
-	default:
-		return fmt.Errorf("invalid strategy: %s", c.Strategy)
+	for _, mode := range c.TestModes {
+		switch mode {
+		case TestModeFull:
+		case TestModeBookend:
+		case TestModeSparse:
+		default:
+			return fmt.Errorf("invalid strategy: %s", c.TestModes)
+		}
 	}
 	return nil
 }
@@ -97,9 +99,9 @@ func IncludeTables(tables ...string) optionFunc {
 	}
 }
 
-func WithStrategy(strategy string) optionFunc {
+func WithTests(testModes ...string) optionFunc {
 	return func(c *Config) {
-		c.Strategy = strategy
+		c.TestModes = testModes
 	}
 }
 

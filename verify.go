@@ -97,7 +97,10 @@ func (c Config) fetchTargetTables(logger *logrus.Entry, conn *pgx.Conn) (SingleR
 		if _, ok := schemaTableHashes[schema.String]; !ok {
 			schemaTableHashes[schema.String] = make(map[string]map[string]string)
 		}
-		schemaTableHashes[schema.String][table.String] = map[string]string{c.Strategy: defaultErrorOutput} // error placeholder
+		schemaTableHashes[schema.String][table.String] = make(map[string]string)
+		for _, testMode := range c.TestModes {
+			schemaTableHashes[schema.String][table.String][testMode] = defaultErrorOutput
+		}
 	}
 	return schemaTableHashes, nil
 }
@@ -124,32 +127,34 @@ func (c Config) runVerificationTests(logger *logrus.Entry, conn *pgx.Conn, schem
 			}
 			tableLogger.Infof("Found %d columns", len(tableColumns))
 
-			var query string
-			switch c.Strategy {
-			case StrategyFull:
-				query = buildFullHashQuery(schemaName, tableName, tableColumns)
-			case StrategyBookend:
-				query = buildBookendHashQuery(schemaName, tableName, tableColumns, c.BookendLimit)
-			case StrategySparse:
-				query = buildSparseHashQuery(schemaName, tableName, tableColumns, c.SparseMod)
-			}
-
-			row := conn.QueryRow(query)
-
-			var hash pgtype.Text
-			err = row.Scan(&hash)
-			if err != nil {
-				switch err {
-				case pgx.ErrNoRows:
-					tableLogger.Info("No rows found")
-					hash.String = "no rows"
-				default:
-					tableLogger.WithError(err).Error("Failed to compute hash")
-					continue
+			for _, testMode := range c.TestModes {
+				var query string
+				switch c.TestModes[0] {
+				case TestModeFull:
+					query = buildFullHashQuery(schemaName, tableName, tableColumns)
+				case TestModeBookend:
+					query = buildBookendHashQuery(schemaName, tableName, tableColumns, c.BookendLimit)
+				case TestModeSparse:
+					query = buildSparseHashQuery(schemaName, tableName, tableColumns, c.SparseMod)
 				}
+
+				row := conn.QueryRow(query)
+
+				var testOutput pgtype.Text
+				err = row.Scan(&testOutput)
+				if err != nil {
+					switch err {
+					case pgx.ErrNoRows:
+						tableLogger.Info("No rows found")
+						testOutput.String = "no rows"
+					default:
+						tableLogger.WithError(err).Error("Failed to compute hash")
+						continue
+					}
+				}
+				schemaTableHashes[schemaName][tableName][testMode] = testOutput.String
+				tableLogger.Infof("Hash computed: %s", testOutput.String)
 			}
-			schemaTableHashes[schemaName][tableName][c.Strategy] = hash.String
-			tableLogger.Infof("Hash computed: %s", hash.String)
 		}
 	}
 	return schemaTableHashes, nil
