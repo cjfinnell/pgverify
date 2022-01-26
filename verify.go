@@ -1,13 +1,11 @@
 package pgverify
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/pgtype"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"go.uber.org/multierr"
 )
 
 func Verify(targets []pgx.ConnConfig, opts ...Option) (*Results, error) {
@@ -16,8 +14,7 @@ func Verify(targets []pgx.ConnConfig, opts ...Option) (*Results, error) {
 }
 
 func (c Config) Verify(targets []pgx.ConnConfig) (*Results, error) {
-	finalResults := NewResults()
-
+	var finalResults *Results
 	err := c.Validate()
 	if err != nil {
 		return finalResults, err
@@ -25,8 +22,14 @@ func (c Config) Verify(targets []pgx.ConnConfig) (*Results, error) {
 	c.Logger.Infof("Verifying %d targets", len(targets))
 
 	// First check that we can connect to every specified target database.
+	var targetNames = make([]string, len(targets))
 	conns := make(map[int]*pgx.Conn)
 	for i, target := range targets {
+		if len(c.Aliases) == len(targets) {
+			targetNames[i] = c.Aliases[i]
+		} else {
+			targetNames[i] = targets[i].Host
+		}
 		conn, err := pgx.Connect(target)
 		if err != nil {
 			return finalResults, err
@@ -34,18 +37,13 @@ func (c Config) Verify(targets []pgx.ConnConfig) (*Results, error) {
 		defer conn.Close()
 		conns[i] = conn
 	}
+	finalResults = NewResults(targetNames)
 
 	// Then query each target database in parallel to generate table hashes.
 	var doneChannels []chan struct{}
 	for i, conn := range conns {
-		var targetName string
-		if len(c.Aliases) == len(targets) {
-			targetName = c.Aliases[i]
-		} else {
-			targetName = targets[i].Host
-		}
 		done := make(chan struct{})
-		go c.generateTableHashes(targetName, conn, finalResults, done)
+		go c.generateTableHashes(targetNames[i], conn, finalResults, done)
 		doneChannels = append(doneChannels, done)
 	}
 	for _, done := range doneChannels {
@@ -53,20 +51,9 @@ func (c Config) Verify(targets []pgx.ConnConfig) (*Results, error) {
 	}
 
 	// Compare final results
-	var hashErrors []string
-	for table, hashes := range finalResults.Hashes {
-		if len(hashes) > 1 {
-			hashErrors = append(hashErrors, fmt.Sprintf("table %s has multiple hashes: %v", table, hashes))
-		}
-		for hash, reportTargets := range hashes {
-			if len(targets) != len(reportTargets) {
-				hashErrors = append(hashErrors, fmt.Sprintf("table %s hash %s has incorct number of targets: %v", table, hash, reportTargets))
-			}
-		}
-	}
-
-	if len(hashErrors) > 0 {
-		return finalResults, fmt.Errorf("Verification failed with errors: %s", strings.Join(hashErrors, "; "))
+	reportErrors := finalResults.CheckForErrors()
+	if len(reportErrors) > 0 {
+		return finalResults, multierr.Combine(reportErrors...)
 	}
 
 	c.Logger.Info("Verification successful")
