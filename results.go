@@ -9,20 +9,22 @@ import (
 	"github.com/olekukonko/tablewriter"
 )
 
+const defaultErrorOutput = "(err)"
+
 type Results struct {
-	// Results.Hashes[table][hash] = [target1, target2, ...]
-	content     map[string]map[string][]string
+	// Results.content[schema][table][mode][hash/output] = [target1, target2, ...]
+	content     map[string]map[string]map[string]map[string][]string
 	targetNames []string
 	mutex       *sync.Mutex
 }
 
 // SingleResult represents the verification result from a single target
-// result[schema][table] = hash
-type SingleResult map[string]map[string]string
+// result[schema][table][mode] = hash/output
+type SingleResult map[string]map[string]map[string]string
 
 func NewResults(targetNames []string) *Results {
 	return &Results{
-		content:     make(map[string]map[string][]string),
+		content:     make(map[string]map[string]map[string]map[string][]string),
 		targetNames: targetNames,
 		mutex:       &sync.Mutex{},
 	}
@@ -33,25 +35,40 @@ func (r *Results) AddResult(targetName string, schemaTableHashes SingleResult) {
 	defer r.mutex.Unlock()
 
 	for schema, tables := range schemaTableHashes {
-		for table, hash := range tables {
-			tableFullName := fmt.Sprintf("%s.%s", schema, table)
-			if _, ok := r.content[tableFullName]; !ok {
-				r.content[tableFullName] = make(map[string][]string)
+		if _, ok := r.content[schema]; !ok {
+			r.content[schema] = make(map[string]map[string]map[string][]string)
+		}
+		for table, modes := range tables {
+			if _, ok := r.content[schema][table]; !ok {
+				r.content[schema][table] = make(map[string]map[string][]string)
 			}
-			r.content[tableFullName][hash] = append(r.content[tableFullName][hash], targetName)
+			for mode, output := range modes {
+				if _, ok := r.content[schema][table][mode]; !ok {
+					r.content[schema][table][mode] = make(map[string][]string)
+				}
+				r.content[schema][table][mode][output] = append(r.content[schema][table][mode][output], targetName)
+			}
 		}
 	}
 }
 
 func (r Results) CheckForErrors() []error {
 	var errors []error
-	for table, hashes := range r.content {
-		if len(hashes) > 1 {
-			errors = append(errors, fmt.Errorf("table %s has multiple hashes: %v", table, hashes))
-		}
-		for hash, reportTargets := range hashes {
-			if len(r.targetNames) != len(reportTargets) {
-				errors = append(errors, fmt.Errorf("table %s hash %s has incorct number of targets: %v", table, hash, reportTargets))
+	for schema, tables := range r.content {
+		for table, modes := range tables {
+			for mode, outputs := range modes {
+				if len(outputs) > 1 {
+					errors = append(errors, fmt.Errorf("%s.%s test %s has %d outputs", schema, table, mode, len(outputs)))
+					continue
+				}
+				for output, targets := range outputs {
+					if len(targets) != len(r.targetNames) {
+						errors = append(errors, fmt.Errorf("%s.%s test %s has %d targets (should be %d)", schema, table, mode, len(targets), len(r.targetNames)))
+					}
+					if output == defaultErrorOutput {
+						errors = append(errors, fmt.Errorf("%s.%s test %s has error output", schema, table, mode))
+					}
+				}
 			}
 		}
 	}
@@ -60,34 +77,41 @@ func (r Results) CheckForErrors() []error {
 
 func (r Results) WriteAsTable(writer io.Writer) {
 	output := tablewriter.NewWriter(writer)
-	output.SetHeader([]string{"Schema.Table", "Hash", "Targets"})
+	header := []string{"schema", "table", "test", "output", "target"}
+	output.SetHeader(header)
 
 	var rows [][]string
-	for table, hashes := range r.content {
-		for hash, targets := range hashes {
-			sort.Strings(targets)
-			for _, target := range targets {
-				rows = append(rows, []string{
-					table,
-					hash,
-					target,
-				})
+
+	for schema, tables := range r.content {
+		for table, modes := range tables {
+			for mode, outputs := range modes {
+				for output, targets := range outputs {
+					for _, target := range targets {
+						rows = append(rows, []string{
+							schema,
+							table,
+							mode,
+							output,
+							target,
+						})
+					}
+				}
 			}
 		}
 	}
 
 	sort.Slice(rows, func(i, j int) bool {
-		if rows[i][0] == rows[j][0] {
-			if rows[i][1] == rows[j][1] {
-				return rows[i][2] < rows[j][2]
+		for k := 0; k < len(header); k++ {
+			if rows[i][k] != rows[j][k] {
+				return rows[i][k] < rows[j][k]
 			}
-			return rows[i][1] < rows[j][1]
 		}
-		return rows[i][0] < rows[j][0]
+		return false
 	})
 	for _, row := range rows {
 		output.Append(row)
 	}
-	output.SetAutoMergeCellsByColumnIndex([]int{0})
+	output.SetAutoMergeCellsByColumnIndex([]int{0, 1, 2})
+	output.SetAutoFormatHeaders(false)
 	output.Render()
 }

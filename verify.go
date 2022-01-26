@@ -95,9 +95,9 @@ func (c Config) fetchTargetTables(logger *logrus.Entry, conn *pgx.Conn) (SingleR
 			return schemaTableHashes, errors.Wrap(err, "failed to scan row data for table names")
 		}
 		if _, ok := schemaTableHashes[schema.String]; !ok {
-			schemaTableHashes[schema.String] = make(map[string]string)
+			schemaTableHashes[schema.String] = make(map[string]map[string]string)
 		}
-		schemaTableHashes[schema.String][table.String] = ""
+		schemaTableHashes[schema.String][table.String] = map[string]string{c.Strategy: defaultErrorOutput} // error placeholder
 	}
 	return schemaTableHashes, nil
 }
@@ -148,7 +148,7 @@ func (c Config) runVerificationTests(logger *logrus.Entry, conn *pgx.Conn, schem
 					continue
 				}
 			}
-			schemaTableHashes[schemaName][tableName] = hash.String
+			schemaTableHashes[schemaName][tableName][c.Strategy] = hash.String
 			tableLogger.Infof("Hash computed: %s", hash.String)
 		}
 	}
