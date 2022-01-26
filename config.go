@@ -14,6 +14,8 @@ const (
 
 	TestModeSparse           = "sparse"
 	TestModeSparseDefaultMod = 10
+
+	TestModeRowCount = "rowcount"
 )
 
 type Config struct {
@@ -59,8 +61,9 @@ func NewConfig(opts ...Option) Config {
 func (c Config) Validate() error {
 	for _, mode := range c.TestModes {
 		switch mode {
-		case TestModeFull:
 		case TestModeBookend:
+		case TestModeFull:
+		case TestModeRowCount:
 		case TestModeSparse:
 		default:
 			return fmt.Errorf("invalid strategy: %s", c.TestModes)

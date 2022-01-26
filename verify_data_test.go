@@ -247,6 +247,7 @@ func TestVerifyData(t *testing.T) {
 			TestModeBookend,
 			TestModeSparse,
 			TestModeFull,
+			TestModeRowCount,
 		),
 		ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
 		WithAliases(aliases),
