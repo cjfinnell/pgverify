@@ -233,41 +233,17 @@ func TestVerifyData(t *testing.T) {
 		targets = append(targets, db.config)
 	}
 
-	// Test different verification strategies
-	for _, tc := range []struct {
-		name string
-		opts []pgverify.Option
-	}{
-		{
-			name: "full",
-			opts: []pgverify.Option{
-				pgverify.WithStrategy(pgverify.StrategyFull),
-			},
-		},
-		{
-			name: "bookend",
-			opts: []pgverify.Option{
-				pgverify.WithStrategy(pgverify.StrategyBookend),
-			},
-		},
-		{
-			name: "sparse",
-			opts: []pgverify.Option{
-				pgverify.WithStrategy(pgverify.StrategySparse),
-			},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			tc.opts = append(
-				tc.opts,
-				pgverify.ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
-				pgverify.WithAliases(aliases),
-			)
-			results, err := pgverify.Verify(
-				targets,
-				tc.opts...)
-			assert.NoError(t, err)
-			results.WriteAsTable(os.Stdout)
-		})
-	}
+	// Test all the different verification strategies
+	results, err := pgverify.Verify(
+		targets,
+		pgverify.WithTests(
+			pgverify.TestModeBookend,
+			pgverify.TestModeSparse,
+			pgverify.TestModeFull,
+		),
+		pgverify.ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
+		pgverify.WithAliases(aliases),
+	)
+	assert.NoError(t, err)
+	results.WriteAsTable(os.Stdout)
 }

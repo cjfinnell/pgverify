@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/cjfinnell/pgverify"
 	"github.com/jackc/pgx"
@@ -11,9 +12,9 @@ import (
 
 // Flags
 var (
-	aliasesFlag, excludeSchemasFlag, excludeTablesFlag, includeSchemasFlag, includeTablesFlag *[]string
-	logLevelFlag, strategyFlag                                                                *string
-	bookendLimitFlag, sparseModFlag                                                           *int
+	aliasesFlag, excludeSchemasFlag, excludeTablesFlag, includeSchemasFlag, includeTablesFlag, testModesFlag *[]string
+	logLevelFlag                                                                                             *string
+	bookendLimitFlag, sparseModFlag                                                                          *int
 )
 
 func init() {
@@ -24,10 +25,15 @@ func init() {
 	includeTablesFlag = rootCmd.Flags().StringSlice("include-tables", []string{}, "tables to verify (comma separated)")
 
 	logLevelFlag = rootCmd.Flags().String("level", "info", "logging level")
-	strategyFlag = rootCmd.Flags().StringP("strategy", "s", pgverify.StrategyFull, "strategy to use for verification")
+	testModesFlag = rootCmd.Flags().StringSliceP("tests", "t", []string{pgverify.TestModeFull},
+		"tests to use for verification (comma separated, options: "+strings.Join([]string{
+			pgverify.TestModeFull,
+			pgverify.TestModeBookend,
+			pgverify.TestModeSparse,
+		}, ", ")+")")
 
-	bookendLimitFlag = rootCmd.Flags().Int("bookend-limit", pgverify.StrategyBookendDefaultLimit, "only check the first and last N rows (with --strategy=bookend)")
-	sparseModFlag = rootCmd.Flags().Int("sparse-mod", pgverify.StrategySparseDefaultMod, "only check every Nth row (with --strategy=sparse)")
+	bookendLimitFlag = rootCmd.Flags().Int("bookend-limit", pgverify.TestModeBookendDefaultLimit, "only check the first and last N rows (with --tests=bookend)")
+	sparseModFlag = rootCmd.Flags().Int("sparse-mod", pgverify.TestModeSparseDefaultMod, "only check every Nth row (with --tests=sparse)")
 }
 
 var rootCmd = &cobra.Command{
@@ -48,7 +54,7 @@ var rootCmd = &cobra.Command{
 			pgverify.ExcludeTables(*excludeTablesFlag...),
 			pgverify.IncludeSchemas(*includeSchemasFlag...),
 			pgverify.ExcludeSchemas(*excludeSchemasFlag...),
-			pgverify.WithStrategy(*strategyFlag),
+			pgverify.WithTests(*testModesFlag...),
 			pgverify.WithSparseMod(*sparseModFlag),
 			pgverify.WithBookendLimit(*bookendLimitFlag),
 		}
