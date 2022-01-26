@@ -571,6 +571,12 @@ github.com/uudashr/gocognit
 # github.com/yeya24/promlinter v0.1.0
 ## explicit; go 1.14
 github.com/yeya24/promlinter
+# go.uber.org/atomic v1.7.0
+## explicit; go 1.13
+go.uber.org/atomic
+# go.uber.org/multierr v1.6.0
+## explicit; go 1.12
+go.uber.org/multierr
 # golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 ## explicit; go 1.17
 golang.org/x/crypto/pbkdf2
