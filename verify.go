@@ -8,11 +8,14 @@ import (
 	"go.uber.org/multierr"
 )
 
+// Verify runs all verification tests for the given table, configured by
+// the supplied Options.
 func Verify(targets []pgx.ConnConfig, opts ...Option) (*Results, error) {
 	c := NewConfig(opts...)
 	return c.Verify(targets)
 }
 
+// Verify runs all verification tests for the given table.
 func (c Config) Verify(targets []pgx.ConnConfig) (*Results, error) {
 	var finalResults *Results
 	err := c.Validate()
@@ -43,7 +46,7 @@ func (c Config) Verify(targets []pgx.ConnConfig) (*Results, error) {
 	var doneChannels []chan struct{}
 	for i, conn := range conns {
 		done := make(chan struct{})
-		go c.generateTableHashes(targetNames[i], conn, finalResults, done)
+		go c.runTestsOnTarget(targetNames[i], conn, finalResults, done)
 		doneChannels = append(doneChannels, done)
 	}
 	for _, done := range doneChannels {
@@ -60,17 +63,17 @@ func (c Config) Verify(targets []pgx.ConnConfig) (*Results, error) {
 	return finalResults, nil
 }
 
-func (c Config) generateTableHashes(targetName string, conn *pgx.Conn, finalResults *Results, done chan struct{}) {
+func (c Config) runTestsOnTarget(targetName string, conn *pgx.Conn, finalResults *Results, done chan struct{}) {
 	logger := c.Logger.WithField("target", targetName)
 
-	schemaTableHashes, err := c.fetchTargetTables(logger, conn)
+	schemaTableHashes, err := c.fetchTargetTableNames(logger, conn)
 	if err != nil {
 		logger.WithError(err).Error("failed to fetch target tables")
 		close(done)
 		return
 	}
 
-	schemaTableHashes, err = c.runVerificationTests(logger, conn, schemaTableHashes)
+	schemaTableHashes, err = c.runTestQueriesOnTarget(logger, conn, schemaTableHashes)
 	if err != nil {
 		logger.WithError(err).Error("failed to run verification tests")
 		close(done)
@@ -82,7 +85,7 @@ func (c Config) generateTableHashes(targetName string, conn *pgx.Conn, finalResu
 	close(done)
 }
 
-func (c Config) fetchTargetTables(logger *logrus.Entry, conn *pgx.Conn) (SingleResult, error) {
+func (c Config) fetchTargetTableNames(logger *logrus.Entry, conn *pgx.Conn) (SingleResult, error) {
 	schemaTableHashes := make(SingleResult)
 	rows, err := conn.Query(buildGetTablesQuery(c.IncludeSchemas, c.ExcludeSchemas, c.IncludeTables, c.ExcludeTables))
 	if err != nil {
@@ -105,7 +108,7 @@ func (c Config) fetchTargetTables(logger *logrus.Entry, conn *pgx.Conn) (SingleR
 	return schemaTableHashes, nil
 }
 
-func (c Config) runVerificationTests(logger *logrus.Entry, conn *pgx.Conn, schemaTableHashes SingleResult) (SingleResult, error) {
+func (c Config) runTestQueriesOnTarget(logger *logrus.Entry, conn *pgx.Conn, schemaTableHashes SingleResult) (SingleResult, error) {
 	for schemaName, tables := range schemaTableHashes {
 		for tableName := range tables {
 			tableLogger := logger.WithField("table", tableName).WithField("schema", schemaName)

@@ -11,18 +11,24 @@ import (
 
 const defaultErrorOutput = "(err)"
 
+// Results stores the results from tests run in a verificaiton. It is accessed
+// from the per-target goroutines and is designed to be thread-safe.
 type Results struct {
-	// Results.content[schema][table][mode][hash/output] = [target1, target2, ...]
-	content     map[string]map[string]map[string]map[string][]string
+	// Names of each target to use in the generated output.
 	targetNames []string
-	testModes   []string
-	mutex       *sync.Mutex
+	// List of test modes run in the verification.
+	testModes []string
+
+	// The code data store of test results, stored in map tree with the schema:
+	//   content[schema][table][mode][test output] = [targetName1, ...]
+	content map[string]map[string]map[string]map[string][]string
+
+	// Mutex to protect access to Results.content
+	mutex *sync.Mutex
 }
 
-// SingleResult represents the verification result from a single target
-// result[schema][table][mode] = hash/output
-type SingleResult map[string]map[string]map[string]string
-
+// NewResults creates a new Results object, configured with the output-formatted
+// names of the targets and list of test modes ran.
 func NewResults(targetNames []string, testModes []string) *Results {
 	return &Results{
 		content:     make(map[string]map[string]map[string]map[string][]string),
@@ -32,6 +38,11 @@ func NewResults(targetNames []string, testModes []string) *Results {
 	}
 }
 
+// SingleResult represents the verification result from a single target, with the schema:
+//   SingleResult[schema][table][mode] = test output
+type SingleResult map[string]map[string]map[string]string
+
+// AddResult adds a SingleResult from a test on a specific target to the Results object.
 func (r *Results) AddResult(targetName string, schemaTableHashes SingleResult) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
@@ -54,6 +65,7 @@ func (r *Results) AddResult(targetName string, schemaTableHashes SingleResult) {
 	}
 }
 
+// CheckForErrors checks for and returns a list of any errors found by comparing test outputs.
 func (r Results) CheckForErrors() []error {
 	var errors []error
 	for schema, tables := range r.content {
@@ -77,6 +89,7 @@ func (r Results) CheckForErrors() []error {
 	return errors
 }
 
+// WriteAsTable writes the results as a table to the given io.Writer.
 func (r Results) WriteAsTable(writer io.Writer) {
 	sort.Strings(r.testModes)
 	header := []string{"schema", "table"}
