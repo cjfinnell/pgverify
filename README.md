@@ -56,7 +56,7 @@ See `pgverify --help` for flag configuration options.
 | Database Engine     | Supported Versions |
 | ------------------- | ------------------ |
 | [PostgreSQL][psql]  | `>=10`             |
-| [CockroachDB][crdb] | `>=20.2`           |
+| [CockroachDB][crdb] | `>=21.2`           |
 
 # Test modes
 
