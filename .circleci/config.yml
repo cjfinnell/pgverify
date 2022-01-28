@@ -6,6 +6,9 @@ executors:
   go:
     docker:
       - image: cimg/go:1.17
+  vm:
+    machine:
+      image: ubuntu-2004:202111-02
 
 jobs:
   lint:
@@ -15,10 +18,19 @@ jobs:
       - run:
           name: Run linter
           command: make lint
+  test:
+    executor: vm
+    steps:
+      - checkout
+      - run:
+          name: Run tests
+          command: make test
 
 workflows:
   version: 2
   ci:
     jobs:
       - lint:
+          context: org-global
+      - test:
           context: org-global
