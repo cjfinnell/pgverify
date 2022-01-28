@@ -145,7 +145,15 @@ func TestVerifyData(t *testing.T) {
 			},
 		},
 		{
-			image: "cockroachdb/cockroach:latest",
+			image: "cockroachdb/cockroach:v20.2.0",
+			cmd:   []string{"start-single-node", "--insecure"},
+			port:  26257,
+			config: pgx.ConnConfig{
+				User: "root",
+			},
+		},
+		{
+			image: "cockroachdb/cockroach:latest", // cockroach cloud
 			cmd:   []string{"start-single-node", "--insecure"},
 			port:  26257,
 			config: pgx.ConnConfig{

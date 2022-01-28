@@ -46,10 +46,7 @@ var rootCmd = &cobra.Command{
 			pgverify.IncludeSchemas(*includeSchemasFlag...),
 			pgverify.ExcludeSchemas(*excludeSchemasFlag...),
 		)
-		if err != nil {
-			return err
-		}
 		report.WriteAsTable(cmd.OutOrStdout())
-		return nil
+		return err
 	},
 }
