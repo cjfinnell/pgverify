@@ -6,32 +6,50 @@
 
 Migrating database engines can be a huge headache; newer relational databases often try to mitigate this by asserting some level of PostgreSQL syntax compatability, but there can be small differences in data types, output formats, etc that make it difficult to affirmatively verify that the actual data between instances is in-sync.
 
-`pgverify` attempts to solve this by generating per-table hashes from the data and comparing results from multiple targets.
+`pgverify` attempts to solve this with a suite of various tests executed against the specified targets and compared for consistency, many of which generate per-table hashes from the data.
 
 # Getting started
 
-First, clone this repository and run `make build` to generate the `pgverify` binary. Then, run with specified `--targets` as a comma-separated list of PostrgeSQL syntax connection URIs:
+First, clone this repository and run `make build` to generate the `pgverify` binary. Then, run with specified targets as a list of PostrgeSQL syntax connection URIs:
 
 ```
-pgverify --targets postgresql://user1:passwd1@host1:port/database,postgresql://user2:passwd2@host2:port/database
+$ pgverify postgresql://user1:passwd1@host1:port/database postgresql://user2:passwd2@host2:port/database [...]
 ```
 
 The resuling table output will outline which tables are in sync between the targets, and which are not:
 
 ```
-$ ./pgverify --targets postgres://root@crdb-local:26257/testdb,postgres://postgres@psql-local:5432/testdb --include-tables testtable,tables
-+---------------------------+----------------------------------+------------+
-|       SCHEMA TABLE        |               HASH               |  TARGETS   |
-+---------------------------+----------------------------------+------------+
-| crdb_internal.tables      | c57be1fc382cd384f42765f31adade2a | crdb-local |
-| information_schema.tables | 6598808f2071cebd826ff340650d2c0a | psql-local |
-|                           | c5d56edfe5fd3f9b7ffe9e0a0d763b66 | crdb-local |
-| public.testtable          | 006c1b5f7b2b24f5c3711fdea3c3fb8f | crdb-local |
-|                           |                                  | psql-local |
-+---------------------------+----------------------------------+------------+
+$ ./pgverify \
+		--tests bookend,full,rowcount,sparse \
+		--include-tables testtable1,testtable2,testtable3 \
+		--aliases cockroachdb/cockroach:latest,cockroachdb/cockroach:v21.2.0,postgres:10,postgres:11,postgres:12.6 \
+		postgres://root@crdb-latest:26257/testdb \
+		postgres://root@crdb-21-2-0:26258/testdb \
+		postgres://postgres@psql-10:5432/testdb \
+		postgres://postgres@psql-11:5433/testdb \
+		postgres://postgres@psql-12-6:5434/testdb
++--------+------------+----------------------------------+----------------------------------+----------+----------------------------------+-------------------------------+
+| schema |   table    |             bookend              |               full               | rowcount |              sparse              |            target             |
++--------+------------+----------------------------------+----------------------------------+----------+----------------------------------+-------------------------------+
+| public | testtable1 | 354c0eedeecf8907a90dd98ed3d826d9 | bffe76957644e5755db2dd2f608bfdb3 |       50 | 454ce26f516555a103be83011b043dfd | cockroachdb/cockroach:latest  |
+|        |            | 354c0eedeecf8907a90dd98ed3d826d9 | bffe76957644e5755db2dd2f608bfdb3 |       50 | 454ce26f516555a103be83011b043dfd | cockroachdb/cockroach:v21.2.0 |
+|        |            | 354c0eedeecf8907a90dd98ed3d826d9 | bffe76957644e5755db2dd2f608bfdb3 |       50 | 454ce26f516555a103be83011b043dfd | postgres:10                   |
+|        |            | 354c0eedeecf8907a90dd98ed3d826d9 | bffe76957644e5755db2dd2f608bfdb3 |       50 | 454ce26f516555a103be83011b043dfd | postgres:11                   |
+|        |            | 354c0eedeecf8907a90dd98ed3d826d9 | bffe76957644e5755db2dd2f608bfdb3 |       50 | 454ce26f516555a103be83011b043dfd | postgres:12.6                 |
+|        | testtable2 | 354c0eedeecf8907a90dd98ed3d826d9 | bffe76957644e5755db2dd2f608bfdb3 |       50 | 454ce26f516555a103be83011b043dfd | cockroachdb/cockroach:latest  |
+|        |            | 354c0eedeecf8907a90dd98ed3d826d9 | bffe76957644e5755db2dd2f608bfdb3 |       50 | 454ce26f516555a103be83011b043dfd | cockroachdb/cockroach:v21.2.0 |
+|        |            | 354c0eedeecf8907a90dd98ed3d826d9 | bffe76957644e5755db2dd2f608bfdb3 |       50 | 454ce26f516555a103be83011b043dfd | postgres:10                   |
+|        |            | 354c0eedeecf8907a90dd98ed3d826d9 | bffe76957644e5755db2dd2f608bfdb3 |       50 | 454ce26f516555a103be83011b043dfd | postgres:11                   |
+|        |            | 354c0eedeecf8907a90dd98ed3d826d9 | bffe76957644e5755db2dd2f608bfdb3 |       50 | 454ce26f516555a103be83011b043dfd | postgres:12.6                 |
+|        | testtable3 | 354c0eedeecf8907a90dd98ed3d826d9 | bffe76957644e5755db2dd2f608bfdb3 |       50 | 454ce26f516555a103be83011b043dfd | cockroachdb/cockroach:latest  |
+|        |            | 354c0eedeecf8907a90dd98ed3d826d9 | bffe76957644e5755db2dd2f608bfdb3 |       50 | 454ce26f516555a103be83011b043dfd | cockroachdb/cockroach:v21.2.0 |
+|        |            | 354c0eedeecf8907a90dd98ed3d826d9 | bffe76957644e5755db2dd2f608bfdb3 |       50 | 454ce26f516555a103be83011b043dfd | postgres:10                   |
+|        |            | 354c0eedeecf8907a90dd98ed3d826d9 | bffe76957644e5755db2dd2f608bfdb3 |       50 | 454ce26f516555a103be83011b043dfd | postgres:11                   |
+|        |            | 354c0eedeecf8907a90dd98ed3d826d9 | bffe76957644e5755db2dd2f608bfdb3 |       50 | 454ce26f516555a103be83011b043dfd | postgres:12.6                 |
++--------+------------+----------------------------------+----------------------------------+----------+----------------------------------+-------------------------------+
 ```
 
-You can include/exclude specific table names and schemas via CLI flags to eliminate unreconcilable table data from the report.
+See `pgverify --help` for flag configuration options.
 
 # Supported databases
 
@@ -39,6 +57,15 @@ You can include/exclude specific table names and schemas via CLI flags to elimin
 | ------------------- | ------------------ |
 | [PostgreSQL][psql]  | `>=10`             |
 | [CockroachDB][crdb] | `>=20.2`           |
+
+# Test modes
+
+| Test mode  | Description                                                                                                 |
+| ---------- | ----------------------------------------------------------------------------------------------------------- |
+| `full`     | Generates an MD5 hash from *all* of the rows in a table. Memory intensive, but the highest confidence test. |
+| `bookend`  | Generates an MD5 hash from the first and last `X` rows in a table, configured by `--bookend-limit X`.       |
+| `sparse`   | Generates an MD5 hash from approximately `1/X` rows in a table, configured by `--sparse-mod X`.             |
+| `rowcount` | Simply queries and compares total row count for a table.                                                    |
 
 <!-- Links -->
 [crdb]: https://www.cockroachlabs.com/
