@@ -144,24 +144,31 @@ func (c Config) runTestQueriesOnTarget(logger *logrus.Entry, conn *pgx.Conn, sch
 					query = buildRowCountQuery(schemaName, tableName)
 				}
 
-				row := conn.QueryRow(query)
-
-				var testOutput pgtype.Text
-				err = row.Scan(&testOutput)
+				testOutput, err := runTestOnTable(conn, query)
 				if err != nil {
-					switch err {
-					case pgx.ErrNoRows:
-						testLogger.Info("No rows found")
-						testOutput.String = "no rows"
-					default:
-						testLogger.WithError(err).Error("Failed to compute hash")
-						continue
-					}
+					testLogger.WithError(err).Error("Failed to compute hash")
+					continue
 				}
-				schemaTableHashes[schemaName][tableName][testMode] = testOutput.String
-				testLogger.Infof("Hash computed: %s", testOutput.String)
+				schemaTableHashes[schemaName][tableName][testMode] = testOutput
+				testLogger.Infof("Hash computed: %s", testOutput)
 			}
 		}
 	}
 	return schemaTableHashes, nil
+}
+
+func runTestOnTable(conn *pgx.Conn, query string) (string, error) {
+	row := conn.QueryRow(query)
+
+	var testOutput pgtype.Text
+	err := row.Scan(&testOutput)
+	if err != nil {
+		switch err {
+		case pgx.ErrNoRows:
+			return "no rows", nil
+		default:
+			return "", errors.Wrap(err, "failed to scan test output")
+		}
+	}
+	return testOutput.String, nil
 }
