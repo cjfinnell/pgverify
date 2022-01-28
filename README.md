@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/gh/udacity/pgverify/branch/main/graph/badge.svg?token=LsTntCpkUr)](https://codecov.io/gh/udacity/pgverify)
+
 `pgverify` is a tool for verifying consistency of data between different database engines.
 
 # Why?

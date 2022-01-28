@@ -1,11 +1,15 @@
 version: 2.1
 orbs:
+  codecov: codecov/codecov@3.2.2
   ucheck: udacity/ucheck@1
 
 executors:
   go:
     docker:
       - image: cimg/go:1.17
+  vm:
+    machine:
+      image: ubuntu-2004:202111-02
 
 jobs:
   lint:
@@ -15,6 +19,15 @@ jobs:
       - run:
           name: Run linter
           command: make lint
+  test:
+    executor: vm
+    steps:
+      - checkout
+      - run:
+          name: Run tests
+          command: make test
+      - codecov/upload:
+          file: coverage.txt
 
 workflows:
   version: 2
@@ -22,3 +35,10 @@ workflows:
     jobs:
       - lint:
           context: org-global
+      - test:
+          context: org-global
+      - ucheck/ucheck:
+          context: org-global
+          filters:
+            tags:
+              only: /^ucheck-.*/
