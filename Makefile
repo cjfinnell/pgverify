@@ -4,7 +4,7 @@ build:
 
 .PHONY: clean
 clean:
-	@rm -f pgverify ||:
+	@rm -f pgverify coverage.txt ||:
 	@go clean -testcache ||:
 
 .PHONY: lint

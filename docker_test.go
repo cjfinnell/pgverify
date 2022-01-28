@@ -1,4 +1,4 @@
-package integration
+package pgverify
 
 import (
 	"context"
@@ -20,8 +20,8 @@ var (
 	defaultTimeout = 10 * time.Second
 )
 
-// NewDockerClient returns a docker client
-func NewDockerClient() (*dockerClient, error) {
+// newDockerClient returns a docker client
+func newDockerClient() (*dockerClient, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create docker client: %w", err)
@@ -33,14 +33,14 @@ type dockerClient struct {
 	client.Client
 }
 
-type ContainerConfig struct {
+type containerConfig struct {
 	image string
-	ports []*PortMapping
+	ports []*portMapping
 	env   []string
 	cmd   []string
 }
 
-type PortMapping struct {
+type portMapping struct {
 	HostPort      string
 	ContainerPort string
 	Proto         string
@@ -61,7 +61,7 @@ func getFreePort() (int, error) {
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
-func (d dockerClient) runContainer(ctx context.Context, config *ContainerConfig) (*container.ContainerCreateCreatedBody, error) {
+func (d dockerClient) runContainer(ctx context.Context, config *containerConfig) (*container.ContainerCreateCreatedBody, error) {
 	imageName, err := reference.ParseNormalizedNamed(config.image)
 	if err != nil {
 		return nil, fmt.Errorf("unable to normalize image name: %w", err)
@@ -80,7 +80,7 @@ func (d dockerClient) runContainer(ctx context.Context, config *ContainerConfig)
 	return container, nil
 }
 
-func (d dockerClient) createNewContainer(ctx context.Context, image string, ports []*PortMapping, env []string, cmd []string) (*container.ContainerCreateCreatedBody, error) {
+func (d dockerClient) createNewContainer(ctx context.Context, image string, ports []*portMapping, env []string, cmd []string) (*container.ContainerCreateCreatedBody, error) {
 	portBinding := nat.PortMap{}
 
 	for _, portmap := range ports {

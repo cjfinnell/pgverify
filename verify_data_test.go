@@ -1,4 +1,4 @@
-package integration
+package pgverify
 
 import (
 	"context"
@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cjfinnell/pgverify"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx"
 	"github.com/stretchr/testify/assert"
@@ -40,7 +39,7 @@ func waitForDBReady(config *pgx.ConnConfig) bool {
 }
 
 func createContainer(t *testing.T, ctx context.Context, image string, port int, env, cmd []string) (string, int, error) {
-	docker, err := NewDockerClient()
+	docker, err := newDockerClient()
 	if err != nil {
 		return "", 0, err
 	}
@@ -52,9 +51,9 @@ func createContainer(t *testing.T, ctx context.Context, image string, port int, 
 
 	container, err := docker.runContainer(
 		ctx,
-		&ContainerConfig{
+		&containerConfig{
 			image: image,
-			ports: []*PortMapping{
+			ports: []*portMapping{
 				{
 					HostPort:      fmt.Sprintf("%d", hostPort),
 					ContainerPort: fmt.Sprintf("%d", port),
@@ -239,9 +238,9 @@ func TestVerifyData(t *testing.T) {
 		targets = append(targets, db.config)
 	}
 
-	report, err := pgverify.Verify(
+	report, err := Verify(
 		targets,
-		pgverify.ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
+		ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
 	)
 	assert.NoError(t, err)
 	report.WriteAsTable(os.Stdout)
