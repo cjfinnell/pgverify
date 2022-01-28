@@ -1,5 +1,6 @@
 version: 2.1
 orbs:
+  codecov: codecov/codecov@3.2.2
   ucheck: udacity/ucheck@1
 
 executors:
@@ -25,6 +26,8 @@ jobs:
       - run:
           name: Run tests
           command: make test
+      - codecov/upload:
+          file: coverage.txt
 
 workflows:
   version: 2
@@ -34,3 +37,8 @@ workflows:
           context: org-global
       - test:
           context: org-global
+      - ucheck/ucheck:
+          context: org-global
+          filters:
+            tags:
+              only: /^ucheck-.*/
