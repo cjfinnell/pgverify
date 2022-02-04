@@ -76,7 +76,7 @@ func createContainer(t *testing.T, ctx context.Context, image string, port int, 
 }
 
 func calculateRowCount(columnTypes map[string][]string) int {
-	rowCount := 5000 // Minimum
+	rowCount := 50 // Minimum
 	for _, columnType := range columnTypes {
 		if rowCount < len(columnType) {
 			rowCount = len(columnType)
@@ -144,7 +144,7 @@ func TestVerifyData(t *testing.T) {
 			},
 		},
 		{
-			image: "cockroachdb/cockroach:v20.2.0",
+			image: "cockroachdb/cockroach:v21.2.0",
 			cmd:   []string{"start-single-node", "--insecure"},
 			port:  26257,
 			config: pgx.ConnConfig{
@@ -162,15 +162,20 @@ func TestVerifyData(t *testing.T) {
 	}
 
 	columnTypes := map[string][]string{
-		"boolean": {"true", "false"},
-		"bytea":   {fmt.Sprintf("'%s'", hex.EncodeToString([]byte("convert this content to bytes")))},
+		"boolean":   {"true", "false"},
+		"bytea":     {fmt.Sprintf("'%s'", hex.EncodeToString([]byte("convert this content to bytes")))},
+		"bit(1)":    {"'1'", "'0'"},
+		"varbit(3)": {"'0'", "'1'", "'101'", "'010'"},
 
-		"bigint[]": {"'{602213950000000000}'"},
-		"integer":  {"0", "123979"},
+		"bigint[]":         {"'{602213950000000000, -1}'"},
+		"integer":          {"0", "123979", "-23974"},
+		"double precision": {"69.123987", "-69.123987"},
 
 		"text":                  {`'foo'`, `'bar'`, `''`, `'something that is much longer but without much other complication'`},
 		"uuid":                  {fmt.Sprintf("'%s'", uuid.New().String())},
 		`character varying(64)`: {`'more string stuff'`},
+
+		"jsonb": {`'{}'`, `'{"foo": ["bar", "baz"]}'`, `'{"foo": "bar"}'`, `'{"foo": "bar", "baz": "qux"}'`},
 
 		"date":                        {`'2020-12-31'`},
 		"timestamp with time zone":    {`'2020-12-31 23:59:59 -8:00'`}, // hashes differently for psql/crdb, convert to epoch when hashing
@@ -213,8 +218,10 @@ func TestVerifyData(t *testing.T) {
 	}
 
 	// Act
-	targets := []pgx.ConnConfig{}
+	var targets []pgx.ConnConfig
+	var aliases []string
 	for _, db := range dbs {
+		aliases = append(aliases, db.image)
 		// Create db and connect
 		_, port, err := createContainer(t, ctx, db.image, db.port, db.env, db.cmd)
 		assert.NoError(t, err)
@@ -238,10 +245,18 @@ func TestVerifyData(t *testing.T) {
 		targets = append(targets, db.config)
 	}
 
-	report, err := Verify(
+	// Test all the different verification strategies
+	results, err := Verify(
 		targets,
+		WithTests(
+			TestModeBookend,
+			TestModeSparse,
+			TestModeFull,
+			TestModeRowCount,
+		),
 		ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
+		WithAliases(aliases),
 	)
 	assert.NoError(t, err)
-	report.WriteAsTable(os.Stdout)
+	results.WriteAsTable(os.Stdout)
 }

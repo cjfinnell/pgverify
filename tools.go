@@ -1,3 +1,5 @@
+// Package for using go mod to pin specific developer tool versions.
+
 //go:build tools
 // +build tools
 
