@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cjfinnell/pgverify"
-	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v4"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
+	"github.com/cjfinnell/pgverify"
 )
 
 // Flags
@@ -41,9 +42,9 @@ var rootCmd = &cobra.Command{
 	Long: `Verify data consistency between PostgreSQL syntax compatible databases.`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var targets []pgx.ConnConfig
+		var targets []*pgx.ConnConfig
 		for _, target := range args {
-			connConfig, err := pgx.ParseURI(target)
+			connConfig, err := pgx.ParseConfig(target)
 			if err != nil {
 				return fmt.Errorf("invalid target URI %s: %w", target, err)
 			}
@@ -73,7 +74,7 @@ var rootCmd = &cobra.Command{
 			opts = append(opts, pgverify.WithAliases(*aliasesFlag))
 		}
 
-		report, err := pgverify.Verify(targets, opts...)
+		report, err := pgverify.Verify(cmd.Context(), targets, opts...)
 		report.WriteAsTable(cmd.OutOrStdout())
 		return err
 	},
