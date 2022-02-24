@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,13 +24,13 @@ var (
 	dbName     = "test"
 )
 
-func waitForDBReady(config *pgx.ConnConfig) bool {
+func waitForDBReady(ctx context.Context, config *pgx.ConnConfig) bool {
 	connected := false
 	for count := 0; count < 30; count++ {
-		conn, err := pgx.Connect(*config)
+		conn, err := pgx.ConnectConfig(ctx, config)
 		if err == nil {
 			connected = true
-			conn.Close()
+			conn.Close(ctx)
 			break
 		}
 		time.Sleep(2 * time.Second)
@@ -90,13 +90,12 @@ func TestVerifyData(t *testing.T) {
 	ctx := context.Background()
 
 	dbs := []struct {
-		image string
-		cmd   []string
-		env   []string
-		port  int
-
-		config pgx.ConnConfig
-		conn   *pgx.Conn
+		image        string
+		cmd          []string
+		env          []string
+		port         int
+		userPassword string
+		db           string
 	}{
 		{
 			image: "postgres:10",
@@ -106,12 +105,9 @@ func TestVerifyData(t *testing.T) {
 				fmt.Sprintf("POSTGRES_USER=%s", dbUser),
 				fmt.Sprintf("POSTGRES_PASSWORD=%s", dbPassword),
 			},
-			port: 5432,
-			config: pgx.ConnConfig{
-				User:     dbUser,
-				Password: dbPassword,
-				Database: dbName,
-			},
+			port:         5432,
+			userPassword: dbUser + ":" + dbPassword,
+			db:           "/" + dbName,
 		},
 		{
 			image: "postgres:11",
@@ -121,12 +117,9 @@ func TestVerifyData(t *testing.T) {
 				fmt.Sprintf("POSTGRES_USER=%s", dbUser),
 				fmt.Sprintf("POSTGRES_PASSWORD=%s", dbPassword),
 			},
-			port: 5432,
-			config: pgx.ConnConfig{
-				User:     dbUser,
-				Password: dbPassword,
-				Database: dbName,
-			},
+			port:         5432,
+			userPassword: dbUser + ":" + dbPassword,
+			db:           "/" + dbName,
 		},
 		{
 			image: "postgres:12.6",
@@ -136,28 +129,21 @@ func TestVerifyData(t *testing.T) {
 				fmt.Sprintf("POSTGRES_USER=%s", dbUser),
 				fmt.Sprintf("POSTGRES_PASSWORD=%s", dbPassword),
 			},
-			port: 5432,
-			config: pgx.ConnConfig{
-				User:     dbUser,
-				Password: dbPassword,
-				Database: dbName,
-			},
+			port:         5432,
+			userPassword: dbUser + ":" + dbPassword,
+			db:           "/" + dbName,
 		},
 		{
-			image: "cockroachdb/cockroach:v21.2.0",
-			cmd:   []string{"start-single-node", "--insecure"},
-			port:  26257,
-			config: pgx.ConnConfig{
-				User: "root",
-			},
+			image:        "cockroachdb/cockroach:v21.2.0",
+			cmd:          []string{"start-single-node", "--insecure"},
+			port:         26257,
+			userPassword: "root",
 		},
 		{
-			image: "cockroachdb/cockroach:latest", // cockroach cloud
-			cmd:   []string{"start-single-node", "--insecure"},
-			port:  26257,
-			config: pgx.ConnConfig{
-				User: "root",
-			},
+			image:        "cockroachdb/cockroach:latest", // cockroach cloud
+			cmd:          []string{"start-single-node", "--insecure"},
+			port:         26257,
+			userPassword: "root",
 		},
 	}
 
@@ -218,35 +204,36 @@ func TestVerifyData(t *testing.T) {
 	}
 
 	// Act
-	var targets []pgx.ConnConfig
+	var targets []*pgx.ConnConfig
 	var aliases []string
 	for _, db := range dbs {
 		aliases = append(aliases, db.image)
 		// Create db and connect
 		_, port, err := createContainer(t, ctx, db.image, db.port, db.env, db.cmd)
 		assert.NoError(t, err)
-		db.config.Host = "127.0.0.1"
-		db.config.Port = uint16(port)
-		assert.True(t, waitForDBReady(&db.config))
-		db.conn, err = pgx.Connect(db.config)
+		config, err := pgx.ParseConfig(fmt.Sprintf("postgresql://%s@127.0.0.1:%d%s", db.userPassword, port, db.db))
+		assert.NoError(t, err)
+		assert.True(t, waitForDBReady(ctx, config))
+		conn, err := pgx.ConnectConfig(ctx, config)
 		require.NoError(t, err)
-		defer db.conn.Close()
+		defer conn.Close(ctx)
 
 		// Create and populate tables
 		for _, tableName := range tableNames {
 			createTableQuery := fmt.Sprintf(`CREATE TABLE "%s" %s`, tableName, createTableQueryBase)
-			_, err = db.conn.Exec(createTableQuery)
+			_, err = conn.Exec(ctx, createTableQuery)
 			assert.NoError(t, err, "Failed to create table %s on %v with query: %s", tableName, db.image, createTableQuery)
 
 			insertDataQuery := fmt.Sprintf(`INSERT INTO "%s" %s`, tableName, insertDataQueryBase)
-			_, err = db.conn.Exec(insertDataQuery)
+			_, err = conn.Exec(ctx, insertDataQuery)
 			assert.NoError(t, err, "Failed to insert data to table on %v with query %s", tableName, db.image, insertDataQuery)
 		}
-		targets = append(targets, db.config)
+		targets = append(targets, config)
 	}
 
 	// Test all the different verification strategies
 	results, err := Verify(
+		ctx,
 		targets,
 		WithTests(
 			TestModeBookend,

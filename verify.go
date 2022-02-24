@@ -1,8 +1,10 @@
 package pgverify
 
 import (
-	"github.com/jackc/pgx"
+	"context"
+
 	"github.com/jackc/pgx/pgtype"
+	"github.com/jackc/pgx/v4"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"go.uber.org/multierr"
@@ -10,13 +12,13 @@ import (
 
 // Verify runs all verification tests for the given table, configured by
 // the supplied Options.
-func Verify(targets []pgx.ConnConfig, opts ...Option) (*Results, error) {
+func Verify(ctx context.Context, targets []*pgx.ConnConfig, opts ...Option) (*Results, error) {
 	c := NewConfig(opts...)
-	return c.Verify(targets)
+	return c.Verify(ctx, targets)
 }
 
 // Verify runs all verification tests for the given table.
-func (c Config) Verify(targets []pgx.ConnConfig) (*Results, error) {
+func (c Config) Verify(ctx context.Context, targets []*pgx.ConnConfig) (*Results, error) {
 	var finalResults *Results
 	err := c.Validate()
 	if err != nil {
@@ -33,11 +35,11 @@ func (c Config) Verify(targets []pgx.ConnConfig) (*Results, error) {
 		} else {
 			targetNames[i] = targets[i].Host
 		}
-		conn, err := pgx.Connect(target)
+		conn, err := pgx.ConnectConfig(ctx, target)
 		if err != nil {
 			return finalResults, err
 		}
-		defer conn.Close()
+		defer conn.Close(ctx)
 		conns[i] = conn
 	}
 	finalResults = NewResults(targetNames, c.TestModes)
@@ -46,7 +48,7 @@ func (c Config) Verify(targets []pgx.ConnConfig) (*Results, error) {
 	var doneChannels []chan struct{}
 	for i, conn := range conns {
 		done := make(chan struct{})
-		go c.runTestsOnTarget(targetNames[i], conn, finalResults, done)
+		go c.runTestsOnTarget(ctx, targetNames[i], conn, finalResults, done)
 		doneChannels = append(doneChannels, done)
 	}
 	for _, done := range doneChannels {
@@ -63,17 +65,17 @@ func (c Config) Verify(targets []pgx.ConnConfig) (*Results, error) {
 	return finalResults, nil
 }
 
-func (c Config) runTestsOnTarget(targetName string, conn *pgx.Conn, finalResults *Results, done chan struct{}) {
+func (c Config) runTestsOnTarget(ctx context.Context, targetName string, conn *pgx.Conn, finalResults *Results, done chan struct{}) {
 	logger := c.Logger.WithField("target", targetName)
 
-	schemaTableHashes, err := c.fetchTargetTableNames(logger, conn)
+	schemaTableHashes, err := c.fetchTargetTableNames(ctx, logger, conn)
 	if err != nil {
 		logger.WithError(err).Error("failed to fetch target tables")
 		close(done)
 		return
 	}
 
-	schemaTableHashes, err = c.runTestQueriesOnTarget(logger, conn, schemaTableHashes)
+	schemaTableHashes, err = c.runTestQueriesOnTarget(ctx, logger, conn, schemaTableHashes)
 	if err != nil {
 		logger.WithError(err).Error("failed to run verification tests")
 		close(done)
@@ -85,9 +87,9 @@ func (c Config) runTestsOnTarget(targetName string, conn *pgx.Conn, finalResults
 	close(done)
 }
 
-func (c Config) fetchTargetTableNames(logger *logrus.Entry, conn *pgx.Conn) (SingleResult, error) {
+func (c Config) fetchTargetTableNames(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn) (SingleResult, error) {
 	schemaTableHashes := make(SingleResult)
-	rows, err := conn.Query(buildGetTablesQuery(c.IncludeSchemas, c.ExcludeSchemas, c.IncludeTables, c.ExcludeTables))
+	rows, err := conn.Query(ctx, buildGetTablesQuery(c.IncludeSchemas, c.ExcludeSchemas, c.IncludeTables, c.ExcludeTables))
 	if err != nil {
 		return schemaTableHashes, errors.Wrap(err, "failed to query for tables")
 	}
@@ -108,12 +110,12 @@ func (c Config) fetchTargetTableNames(logger *logrus.Entry, conn *pgx.Conn) (Sin
 	return schemaTableHashes, nil
 }
 
-func (c Config) runTestQueriesOnTarget(logger *logrus.Entry, conn *pgx.Conn, schemaTableHashes SingleResult) (SingleResult, error) {
+func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, schemaTableHashes SingleResult) (SingleResult, error) {
 	for schemaName, tables := range schemaTableHashes {
 		for tableName := range tables {
 			tableLogger := logger.WithField("table", tableName).WithField("schema", schemaName)
 			tableLogger.Info("Computing hash")
-			rows, err := conn.Query(buildGetColumsQuery(schemaName, tableName))
+			rows, err := conn.Query(ctx, buildGetColumsQuery(schemaName, tableName))
 			if err != nil {
 				tableLogger.WithError(err).Error("Failed to query column names, data types")
 				continue
@@ -144,7 +146,7 @@ func (c Config) runTestQueriesOnTarget(logger *logrus.Entry, conn *pgx.Conn, sch
 					query = buildRowCountQuery(schemaName, tableName)
 				}
 
-				testOutput, err := runTestOnTable(conn, query)
+				testOutput, err := runTestOnTable(ctx, conn, query)
 				if err != nil {
 					testLogger.WithError(err).Error("Failed to compute hash")
 					continue
@@ -157,8 +159,8 @@ func (c Config) runTestQueriesOnTarget(logger *logrus.Entry, conn *pgx.Conn, sch
 	return schemaTableHashes, nil
 }
 
-func runTestOnTable(conn *pgx.Conn, query string) (string, error) {
-	row := conn.QueryRow(query)
+func runTestOnTable(ctx context.Context, conn *pgx.Conn, query string) (string, error) {
+	row := conn.QueryRow(ctx, query)
 
 	var testOutput pgtype.Text
 	err := row.Scan(&testOutput)
