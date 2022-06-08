@@ -26,7 +26,8 @@ func (c column) IsPrimaryKey() bool {
 func (c column) CastToText() string {
 	switch strings.ToLower(c.dataType) {
 	case "timestamp with time zone":
-		return fmt.Sprintf("extract(epoch from %s)::TEXT", c.name)
+		// Truncating the epoch means that timestamps will be compared "to the second"; timestamps with ms/ns differences will be considered equal.
+		return fmt.Sprintf("trunc(extract(epoch from %s)::NUMERIC)::TEXT", c.name)
 	default:
 		return c.name + "::TEXT"
 	}

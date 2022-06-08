@@ -164,7 +164,7 @@ func TestVerifyData(t *testing.T) {
 		"jsonb": {`'{}'`, `'{"foo": ["bar", "baz"]}'`, `'{"foo": "bar"}'`, `'{"foo": "bar", "baz": "qux"}'`},
 
 		"date":                        {`'2020-12-31'`},
-		"timestamp with time zone":    {`'2020-12-31 23:59:59 -8:00'`}, // hashes differently for psql/crdb, convert to epoch when hashing
+		"timestamp with time zone":    {`'2020-12-31 23:59:59 -8:00'`, `'2022-06-08 20:03:06.957223+00'`}, // hashes differently for psql/crdb, convert to epoch when hashing
 		"timestamp without time zone": {`'2020-12-31 23:59:59'`},
 	}
 	keys := make([]string, len(columnTypes))
