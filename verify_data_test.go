@@ -140,6 +140,12 @@ func TestVerifyData(t *testing.T) {
 			userPassword: "root",
 		},
 		{
+			image:        "cockroachdb/cockroach:v21.2.12",
+			cmd:          []string{"start-single-node", "--insecure"},
+			port:         26257,
+			userPassword: "root",
+		},
+		{
 			image:        "cockroachdb/cockroach:latest", // cockroach cloud
 			cmd:          []string{"start-single-node", "--insecure"},
 			port:         26257,
