@@ -170,6 +170,8 @@ func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry
 					query = buildRowCountQuery(schemaName, tableName)
 				}
 
+				testLogger.Debugf("Generated query: %s", query)
+
 				testOutput, err := runTestOnTable(ctx, conn, query)
 				if err != nil {
 					testLogger.WithError(err).Error("Failed to compute hash")
