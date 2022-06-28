@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"sort"
 	"strconv"
@@ -88,6 +89,7 @@ func calculateRowCount(columnTypes map[string][]string) int {
 func TestVerifyData(t *testing.T) {
 	// Arrange
 	ctx := context.Background()
+	rand.Seed(time.Now().UnixNano())
 
 	dbs := []struct {
 		image        string
@@ -198,15 +200,14 @@ func TestVerifyData(t *testing.T) {
 
 	rowCount := calculateRowCount(columnTypes)
 	insertDataQueryBase := `(id, ` + strings.Join(keys, ", ") + `) VALUES `
+	valueClauses := make([]string, 0, rowCount)
 	for rowID := 0; rowID < rowCount; rowID++ {
-		if rowID != 0 {
-			insertDataQueryBase += ", "
-		}
-		insertDataQueryBase += `(` + strconv.Itoa(rowID)
+		valueClause := `(` + strconv.Itoa(rowID)
 		for _, columnType := range sortedTypes {
-			insertDataQueryBase += `, ` + columnTypes[columnType][rowID%len(columnTypes[columnType])]
+			valueClause += `, ` + columnTypes[columnType][rowID%len(columnTypes[columnType])]
 		}
-		insertDataQueryBase += `)`
+		valueClause += `)`
+		valueClauses = append(valueClauses, valueClause)
 	}
 
 	// Act
@@ -230,7 +231,8 @@ func TestVerifyData(t *testing.T) {
 			_, err = conn.Exec(ctx, createTableQuery)
 			assert.NoError(t, err, "Failed to create table %s on %v with query: %s", tableName, db.image, createTableQuery)
 
-			insertDataQuery := fmt.Sprintf(`INSERT INTO "%s" %s`, tableName, insertDataQueryBase)
+			rand.Shuffle(len(valueClauses), func(i, j int) { valueClauses[i], valueClauses[j] = valueClauses[j], valueClauses[i] })
+			insertDataQuery := fmt.Sprintf(`INSERT INTO "%s" %s %s`, tableName, insertDataQueryBase, strings.Join(valueClauses, ", "))
 			_, err = conn.Exec(ctx, insertDataQuery)
 			assert.NoError(t, err, "Failed to insert data to table on %v with query %s", tableName, db.image, insertDataQuery)
 		}
