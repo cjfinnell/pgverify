@@ -21,7 +21,6 @@ linters:
     - godot # todo
     - godox # todo
     - goerr113 # todo
-    - gofumpt # todo
     - ifshort # todo
     - lll # todo
     - misspell # todo

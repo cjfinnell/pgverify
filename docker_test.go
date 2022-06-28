@@ -16,9 +16,7 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-var (
-	defaultTimeout = 10 * time.Second
-)
+var defaultTimeout = 10 * time.Second
 
 // newDockerClient returns a docker client
 func newDockerClient() (*dockerClient, error) {
@@ -85,7 +83,7 @@ func (d dockerClient) createNewContainer(ctx context.Context, image string, port
 
 	for _, portmap := range ports {
 		hostBinding := nat.PortBinding{
-			//TODO: Allow for host ips to be specified
+			// TODO: Allow for host ips to be specified
 			HostIP:   "0.0.0.0",
 			HostPort: portmap.HostPort,
 		}

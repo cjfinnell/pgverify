@@ -27,7 +27,7 @@ func (c Config) Verify(ctx context.Context, targets []*pgx.ConnConfig) (*Results
 	c.Logger.Infof("Verifying %d targets", len(targets))
 
 	// First check that we can connect to every specified target database.
-	var targetNames = make([]string, len(targets))
+	targetNames := make([]string, len(targets))
 	conns := make(map[int]*pgx.Conn)
 	for i, target := range targets {
 		pgxLoggerFields := logrus.Fields{
