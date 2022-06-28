@@ -72,7 +72,7 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			levelInt = log.InfoLevel
 		}
-		logger.SetLevel(log.Level(levelInt))
+		logger.SetLevel(levelInt)
 		opts = append(opts, pgverify.WithLogger(logger))
 
 		if len(*aliasesFlag) > 0 {

@@ -195,9 +195,9 @@ func TestVerifyData(t *testing.T) {
 
 	for k := range columnTypes {
 		// Create sanitized column name from type
-		cleanName := strings.Replace(fmt.Sprintf("col_%s", k), " ", "_", -1)
+		cleanName := strings.ReplaceAll(fmt.Sprintf("col_%s", k), " ", "_")
 		for _, char := range "()[]" {
-			cleanName = strings.Replace(cleanName, string(char), "", -1)
+			cleanName = strings.ReplaceAll(cleanName, string(char), "")
 		}
 
 		sortedTypes[i] = k

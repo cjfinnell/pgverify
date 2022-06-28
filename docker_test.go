@@ -58,7 +58,12 @@ func getFreePort() (int, error) {
 	}
 	defer l.Close()
 
-	return l.Addr().(*net.TCPAddr).Port, nil
+	asTCPAddr, ok := l.Addr().(*net.TCPAddr)
+	if !ok {
+		return 0, fmt.Errorf("unable assert net.Addr as net.TCPAddr")
+	}
+
+	return asTCPAddr.Port, nil
 }
 
 func (d dockerClient) runContainer(t *testing.T, ctx context.Context, config *containerConfig) (*container.ContainerCreateCreatedBody, error) {
