@@ -28,15 +28,20 @@ var (
 
 func waitForDBReady(ctx context.Context, config *pgx.ConnConfig) bool {
 	connected := false
+
 	for count := 0; count < 30; count++ {
 		conn, err := pgx.ConnectConfig(ctx, config)
 		if err == nil {
 			connected = true
+
 			conn.Close(ctx)
+
 			break
 		}
+
 		time.Sleep(2 * time.Second)
 	}
+
 	return connected
 }
 
@@ -84,12 +89,14 @@ func calculateRowCount(columnTypes map[string][]string) int {
 			rowCount = len(columnType)
 		}
 	}
+
 	return rowCount
 }
 
 func TestVerifyData(t *testing.T) {
 	// Arrange
 	ctx := context.Background()
+
 	rand.Seed(time.Now().UnixNano())
 
 	dbs := []struct {
@@ -180,6 +187,7 @@ func TestVerifyData(t *testing.T) {
 	keysWithTypes := make([]string, len(columnTypes))
 	sortedTypes := make([]string, len(columnTypes))
 	i := 0
+
 	for k := range columnTypes {
 		// Create sanitized column name from type
 		cleanName := strings.Replace(fmt.Sprintf("col_%s", k), " ", "_", -1)
@@ -192,6 +200,7 @@ func TestVerifyData(t *testing.T) {
 		keysWithTypes[i] = strings.Join([]string{keys[i], k}, " ")
 		i++
 	}
+
 	sort.Strings(keys)
 	sort.Strings(keysWithTypes)
 	sort.Strings(sortedTypes)
@@ -202,18 +211,23 @@ func TestVerifyData(t *testing.T) {
 	rowCount := calculateRowCount(columnTypes)
 	insertDataQueryBase := `(id, ` + strings.Join(keys, ", ") + `) VALUES `
 	valueClauses := make([]string, 0, rowCount)
+
 	for rowID := 0; rowID < rowCount; rowID++ {
 		valueClause := `(` + strconv.Itoa(rowID)
 		for _, columnType := range sortedTypes {
 			valueClause += `, ` + columnTypes[columnType][rowID%len(columnTypes[columnType])]
 		}
+
 		valueClause += `)`
+
 		valueClauses = append(valueClauses, valueClause)
 	}
 
 	// Act
 	var targets []*pgx.ConnConfig
+
 	var aliases []string
+
 	for _, db := range dbs {
 		aliases = append(aliases, db.image)
 		// Create db and connect
@@ -224,6 +238,7 @@ func TestVerifyData(t *testing.T) {
 		assert.True(t, waitForDBReady(ctx, config))
 		conn, err := pgx.ConnectConfig(ctx, config)
 		require.NoError(t, err)
+
 		defer conn.Close(ctx)
 
 		// Create and populate tables
@@ -237,6 +252,7 @@ func TestVerifyData(t *testing.T) {
 			_, err = conn.Exec(ctx, insertDataQuery)
 			assert.NoError(t, err, "Failed to insert data to table on %v with query %s", tableName, db.image, insertDataQuery)
 		}
+
 		targets = append(targets, config)
 	}
 

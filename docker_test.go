@@ -18,12 +18,13 @@ import (
 
 var defaultTimeout = 10 * time.Second
 
-// newDockerClient returns a docker client
+// newDockerClient returns a docker client.
 func newDockerClient() (*dockerClient, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create docker client: %w", err)
 	}
+
 	return &dockerClient{*cli}, nil
 }
 
@@ -64,17 +65,20 @@ func (d dockerClient) runContainer(ctx context.Context, config *containerConfig)
 	if err != nil {
 		return nil, fmt.Errorf("unable to normalize image name: %w", err)
 	}
+
 	fullName := imageName.String()
 
 	container, err := d.createNewContainer(ctx, fullName, config.ports, config.env, config.cmd)
 	if err != nil {
 		return nil, fmt.Errorf("unable create container: %w", err)
 	}
-	err = d.ContainerStart(ctx, container.ID, types.ContainerStartOptions{})
-	if err != nil {
+
+	if err = d.ContainerStart(ctx, container.ID, types.ContainerStartOptions{}); err != nil {
 		return nil, fmt.Errorf("unable to start the container: %w", err)
 	}
+
 	fmt.Printf("container %s is started\n", container.ID)
+
 	return container, nil
 }
 
@@ -111,6 +115,7 @@ func (d dockerClient) createNewContainer(ctx context.Context, image string, port
 	networkingConfig := &network.NetworkingConfig{}
 
 	var resp container.ContainerCreateCreatedBody
+
 	var err error
 
 	resp, err = d.ContainerCreate(ctx, containerConfig, hostConfig, networkingConfig, nil, "")
@@ -141,13 +146,14 @@ func (d dockerClient) createNewContainer(ctx context.Context, image string, port
 
 func (d dockerClient) removeContainer(ctx context.Context, id string) error {
 	fmt.Printf("container %s is stopping\n", id)
-	err := d.ContainerStop(ctx, id, &defaultTimeout)
-	if err != nil {
+
+	if err := d.ContainerStop(ctx, id, &defaultTimeout); err != nil {
 		return fmt.Errorf("failed stopping container: %w", err)
 	}
+
 	fmt.Printf("container %s is stopped\n", id)
 
-	err = d.Client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
+	err := d.Client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
 		RemoveVolumes: true,
 		// RemoveLinks=true causes "Error response from daemon: Conflict, cannot
 		// remove the default name of the container"
@@ -157,6 +163,8 @@ func (d dockerClient) removeContainer(ctx context.Context, id string) error {
 	if err != nil {
 		return fmt.Errorf("failed removing container: %w", err)
 	}
+
 	fmt.Printf("container %s is removed\n", id)
+
 	return nil
 }

@@ -11,7 +11,7 @@ import (
 
 const defaultErrorOutput = "(err)"
 
-// Results stores the results from tests run in a verificaiton. It is accessed
+// Results stores the results from tests run in a verification. It is accessed
 // from the per-target goroutines and is designed to be thread-safe.
 type Results struct {
 	// Names of each target to use in the generated output.
@@ -51,14 +51,17 @@ func (r *Results) AddResult(targetName string, schemaTableHashes SingleResult) {
 		if _, ok := r.content[schema]; !ok {
 			r.content[schema] = make(map[string]map[string]map[string][]string)
 		}
+
 		for table, modes := range tables {
 			if _, ok := r.content[schema][table]; !ok {
 				r.content[schema][table] = make(map[string]map[string][]string)
 			}
+
 			for mode, output := range modes {
 				if _, ok := r.content[schema][table][mode]; !ok {
 					r.content[schema][table][mode] = make(map[string][]string)
 				}
+
 				r.content[schema][table][mode][output] = append(r.content[schema][table][mode][output], targetName)
 			}
 		}
@@ -68,17 +71,21 @@ func (r *Results) AddResult(targetName string, schemaTableHashes SingleResult) {
 // CheckForErrors checks for and returns a list of any errors found by comparing test outputs.
 func (r Results) CheckForErrors() []error {
 	var errors []error
+
 	for schema, tables := range r.content {
 		for table, modes := range tables {
 			for mode, outputs := range modes {
 				if len(outputs) > 1 {
 					errors = append(errors, fmt.Errorf("%s.%s test %s has %d outputs", schema, table, mode, len(outputs)))
+
 					continue
 				}
+
 				for output, targets := range outputs {
 					if len(targets) != len(r.targetNames) {
 						errors = append(errors, fmt.Errorf("%s.%s test %s has %d targets (should be %d)", schema, table, mode, len(targets), len(r.targetNames)))
 					}
+
 					if output == defaultErrorOutput {
 						errors = append(errors, fmt.Errorf("%s.%s test %s has error output", schema, table, mode))
 					}
@@ -86,13 +93,16 @@ func (r Results) CheckForErrors() []error {
 			}
 		}
 	}
+
 	return errors
 }
 
 // WriteAsTable writes the results as a table to the given io.Writer.
 func (r Results) WriteAsTable(writer io.Writer) {
 	sort.Strings(r.testModes)
+
 	header := []string{"schema", "table"}
+
 	header = append(header, r.testModes...)
 	header = append(header, "target")
 	output := tablewriter.NewWriter(writer)
@@ -111,6 +121,7 @@ func (r Results) WriteAsTable(writer io.Writer) {
 						if _, ok := combinedModesOutputs[target]; !ok {
 							combinedModesOutputs[target] = make(map[string]string)
 						}
+
 						combinedModesOutputs[target][mode] = output
 					}
 				}
@@ -118,6 +129,7 @@ func (r Results) WriteAsTable(writer io.Writer) {
 
 			for target := range combinedModesOutputs {
 				row := []string{schema, table}
+
 				for _, mode := range r.testModes {
 					if _, ok := combinedModesOutputs[target][mode]; ok {
 						row = append(row, combinedModesOutputs[target][mode])
@@ -125,6 +137,7 @@ func (r Results) WriteAsTable(writer io.Writer) {
 						row = append(row, defaultErrorOutput)
 					}
 				}
+
 				row = append(row, target)
 				rows = append(rows, row)
 			}
@@ -137,11 +150,14 @@ func (r Results) WriteAsTable(writer io.Writer) {
 				return rows[i][k] < rows[j][k]
 			}
 		}
+
 		return false
 	})
+
 	for _, row := range rows {
 		output.Append(row)
 	}
+
 	output.SetAutoMergeCellsByColumnIndex([]int{0, 1})
 	output.SetAutoFormatHeaders(false)
 	output.Render()

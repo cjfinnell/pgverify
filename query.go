@@ -28,7 +28,9 @@ func buildGetTablesQuery(includeSchemas, excludeSchemas, includeTables, excludeT
 				whereClause += ", "
 			}
 		}
+
 		whereClause += ")"
+
 		whereClauses = append(whereClauses, whereClause)
 	} else if len(excludeSchemas) > 0 {
 		whereClause := "table_schema NOT IN ("
@@ -50,7 +52,9 @@ func buildGetTablesQuery(includeSchemas, excludeSchemas, includeTables, excludeT
 				whereClause += ", "
 			}
 		}
+
 		whereClause += ")"
+
 		whereClauses = append(whereClauses, whereClause)
 	} else if len(excludeTables) > 0 {
 		whereClause := "table_name NOT IN ("
@@ -106,9 +110,12 @@ func buildFullHashQuery(schemaName, tableName string, columns []column) string {
 // based off of that value modulo the configured SparseMod value.
 func buildSparseHashQuery(schemaName, tableName string, columns []column, sparseMod int) string {
 	var columnsWithCasting []string
+
 	var primaryKey column
+
 	for _, column := range columns {
 		columnsWithCasting = append(columnsWithCasting, column.CastToText())
+
 		if column.IsPrimaryKey() {
 			primaryKey = column
 		}
@@ -143,6 +150,7 @@ func buildBookendHashQuery(schemaName, tableName string, columns []column, limit
 	for _, column := range columns {
 		columnsWithCasting = append(columnsWithCasting, column.CastToText())
 	}
+
 	allColumnsWithCasting := strings.Join(columnsWithCasting, ", ")
 
 	return formatQuery(fmt.Sprintf(`

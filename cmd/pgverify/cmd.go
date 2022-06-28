@@ -11,7 +11,7 @@ import (
 	"github.com/cjfinnell/pgverify"
 )
 
-// Flags
+// Flags.
 var (
 	aliasesFlag, excludeSchemasFlag, excludeTablesFlag, includeSchemasFlag, includeTablesFlag, includeColumnsFlag, excludeColumnsFlag, testModesFlag *[]string
 	logLevelFlag                                                                                                                                     *string
@@ -81,6 +81,7 @@ var rootCmd = &cobra.Command{
 
 		report, err := pgverify.Verify(cmd.Context(), targets, opts...)
 		report.WriteAsTable(cmd.OutOrStdout())
+
 		return err
 	},
 }
