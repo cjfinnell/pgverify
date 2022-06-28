@@ -30,11 +30,28 @@ func (c Config) Verify(ctx context.Context, targets []*pgx.ConnConfig) (*Results
 	var targetNames = make([]string, len(targets))
 	conns := make(map[int]*pgx.Conn)
 	for i, target := range targets {
+		pgxLoggerFields := logrus.Fields{
+			"component": "pgx",
+			"host":      targets[i].Host,
+			"port":      targets[i].Port,
+			"database":  targets[i].Database,
+			"user":      targets[i].User,
+		}
+
 		if len(c.Aliases) == len(targets) {
 			targetNames[i] = c.Aliases[i]
+			pgxLoggerFields["alias"] = c.Aliases[i]
 		} else {
 			targetNames[i] = targets[i].Host
 		}
+
+		target.Logger = &pgxLogger{c.Logger.WithFields(pgxLoggerFields)}
+
+		target.LogLevel, err = pgx.LogLevelFromString(c.Logger.Level.String())
+		if err != nil {
+			target.LogLevel = pgx.LogLevelError
+		}
+
 		conn, err := pgx.ConnectConfig(ctx, target)
 		if err != nil {
 			return finalResults, err
