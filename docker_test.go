@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"testing"
 	"time"
 
 	"github.com/docker/distribution/reference"
@@ -60,7 +61,9 @@ func getFreePort() (int, error) {
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
-func (d dockerClient) runContainer(ctx context.Context, config *containerConfig) (*container.ContainerCreateCreatedBody, error) {
+func (d dockerClient) runContainer(t *testing.T, ctx context.Context, config *containerConfig) (*container.ContainerCreateCreatedBody, error) {
+	t.Helper()
+
 	imageName, err := reference.ParseNormalizedNamed(config.image)
 	if err != nil {
 		return nil, fmt.Errorf("unable to normalize image name: %w", err)
@@ -68,7 +71,7 @@ func (d dockerClient) runContainer(ctx context.Context, config *containerConfig)
 
 	fullName := imageName.String()
 
-	container, err := d.createNewContainer(ctx, fullName, config.ports, config.env, config.cmd)
+	container, err := d.createNewContainer(t, ctx, fullName, config.ports, config.env, config.cmd)
 	if err != nil {
 		return nil, fmt.Errorf("unable create container: %w", err)
 	}
@@ -77,12 +80,14 @@ func (d dockerClient) runContainer(ctx context.Context, config *containerConfig)
 		return nil, fmt.Errorf("unable to start the container: %w", err)
 	}
 
-	fmt.Printf("container %s is started\n", container.ID)
+	t.Logf("container %s is started\n", container.ID)
 
 	return container, nil
 }
 
-func (d dockerClient) createNewContainer(ctx context.Context, image string, ports []*portMapping, env []string, cmd []string) (*container.ContainerCreateCreatedBody, error) {
+func (d dockerClient) createNewContainer(t *testing.T, ctx context.Context, image string, ports []*portMapping, env []string, cmd []string) (*container.ContainerCreateCreatedBody, error) {
+	t.Helper()
+
 	portBinding := nat.PortMap{}
 
 	for _, portmap := range ports {
@@ -144,14 +149,16 @@ func (d dockerClient) createNewContainer(ctx context.Context, image string, port
 	return &resp, nil
 }
 
-func (d dockerClient) removeContainer(ctx context.Context, id string) error {
-	fmt.Printf("container %s is stopping\n", id)
+func (d dockerClient) removeContainer(t *testing.T, ctx context.Context, id string) error {
+	t.Helper()
+
+	t.Logf("container %s is stopping\n", id)
 
 	if err := d.ContainerStop(ctx, id, &defaultTimeout); err != nil {
 		return fmt.Errorf("failed stopping container: %w", err)
 	}
 
-	fmt.Printf("container %s is stopped\n", id)
+	t.Logf("container %s is stopped\n", id)
 
 	err := d.Client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
 		RemoveVolumes: true,
@@ -164,7 +171,7 @@ func (d dockerClient) removeContainer(ctx context.Context, id string) error {
 		return fmt.Errorf("failed removing container: %w", err)
 	}
 
-	fmt.Printf("container %s is removed\n", id)
+	t.Logf("container %s is removed\n", id)
 
 	return nil
 }

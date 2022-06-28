@@ -26,7 +26,9 @@ var (
 	dbName     = "test"
 )
 
-func waitForDBReady(ctx context.Context, config *pgx.ConnConfig) bool {
+func waitForDBReady(t *testing.T, ctx context.Context, config *pgx.ConnConfig) bool {
+	t.Helper()
+
 	connected := false
 
 	for count := 0; count < 30; count++ {
@@ -46,6 +48,8 @@ func waitForDBReady(ctx context.Context, config *pgx.ConnConfig) bool {
 }
 
 func createContainer(t *testing.T, ctx context.Context, image string, port int, env, cmd []string) (string, int, error) {
+	t.Helper()
+
 	docker, err := newDockerClient()
 	if err != nil {
 		return "", 0, err
@@ -57,6 +61,7 @@ func createContainer(t *testing.T, ctx context.Context, image string, port int, 
 	}
 
 	container, err := docker.runContainer(
+		t,
 		ctx,
 		&containerConfig{
 			image: image,
@@ -74,7 +79,7 @@ func createContainer(t *testing.T, ctx context.Context, image string, port int, 
 	}
 
 	t.Cleanup(func() {
-		if err := docker.removeContainer(ctx, container.ID); err != nil {
+		if err := docker.removeContainer(t, ctx, container.ID); err != nil {
 			t.Errorf("Could not remove container %s: %v", container.ID, err)
 		}
 	})
@@ -235,7 +240,7 @@ func TestVerifyData(t *testing.T) {
 		assert.NoError(t, err)
 		config, err := pgx.ParseConfig(fmt.Sprintf("postgresql://%s@127.0.0.1:%d%s", db.userPassword, port, db.db))
 		assert.NoError(t, err)
-		assert.True(t, waitForDBReady(ctx, config))
+		assert.True(t, waitForDBReady(t, ctx, config))
 		conn, err := pgx.ConnectConfig(ctx, config)
 		require.NoError(t, err)
 

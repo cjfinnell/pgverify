@@ -12,7 +12,6 @@ linters:
     - paralleltest
     - cyclop # todo
     - errorlint # todo
-    - forbidigo # todo
     - forcetypeassert # todo
     - funlen # todo
     - gci # todo
@@ -23,7 +22,6 @@ linters:
     - lll # todo
     - prealloc # todo
     - revive # todo
-    - thelper # todo
     - unconvert # todo
     - varnamelen # todo
     - wrapcheck # todo
