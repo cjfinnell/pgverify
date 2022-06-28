@@ -1,6 +1,6 @@
 module github.com/cjfinnell/pgverify
 
-go 1.17
+go 1.18
 
 require (
 	github.com/docker/distribution v2.7.1+incompatible
