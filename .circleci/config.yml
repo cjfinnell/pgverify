@@ -40,7 +40,7 @@ jobs:
           command: curl --create-dirs -o $HOME/.postgresql/root.crt -O $CRDB_CERT
       - run:
           name: Run integration tests
-          command: ./pgverify --include-tables testtable --aliases rds,crdb $PSQL_URI $CRDB_URI
+          command: ./pgverify --tests full,rowcount --include-tables testtable --aliases rds,crdb $PSQL_URI $CRDB_URI
 
 workflows:
   version: 2
