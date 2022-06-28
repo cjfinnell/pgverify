@@ -188,7 +188,7 @@ func TestVerifyData(t *testing.T) {
 	sort.Strings(sortedTypes)
 
 	tableNames := []string{"testtable1", "testtable2", "testtable3"}
-	createTableQueryBase := fmt.Sprintf("( id INT PRIMARY KEY, %s);", strings.Join(keysWithTypes, ", "))
+	createTableQueryBase := fmt.Sprintf("( id INT PRIMARY KEY, ignored TIMESTAMP WITH TIME ZONE DEFAULT NOW(), %s);", strings.Join(keysWithTypes, ", "))
 
 	rowCount := calculateRowCount(columnTypes)
 	insertDataQueryBase := `(id, ` + strings.Join(keys, ", ") + `) VALUES `
@@ -242,6 +242,7 @@ func TestVerifyData(t *testing.T) {
 			TestModeRowCount,
 		),
 		ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
+		ExcludeColumns("ignored"),
 		WithAliases(aliases),
 	)
 	assert.NoError(t, err)

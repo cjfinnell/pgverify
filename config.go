@@ -35,6 +35,8 @@ type Config struct {
 	ExcludeTables  []string
 	IncludeSchemas []string
 	ExcludeSchemas []string
+	IncludeColumns []string
+	ExcludeColumns []string
 
 	// TestModes is a list of test modes to run, executed in order.
 	TestModes []string
@@ -126,6 +128,20 @@ func ExcludeTables(tables ...string) optionFunc {
 func IncludeTables(tables ...string) optionFunc {
 	return func(c *Config) {
 		c.IncludeTables = tables
+	}
+}
+
+// ExcludeColumns sets the exclude columns configuration.
+func ExcludeColumns(columns ...string) optionFunc {
+	return func(c *Config) {
+		c.ExcludeColumns = columns
+	}
+}
+
+// IncludeColumns sets the include columns configuration.
+func IncludeColumns(columns ...string) optionFunc {
+	return func(c *Config) {
+		c.IncludeColumns = columns
 	}
 }
 
