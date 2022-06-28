@@ -1,4 +1,4 @@
-package pgverify
+package pgverify_test
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cjfinnell/pgverify"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/assert"
@@ -240,18 +241,18 @@ func TestVerifyData(t *testing.T) {
 	}
 
 	// Test all the different verification strategies
-	results, err := Verify(
+	results, err := pgverify.Verify(
 		ctx,
 		targets,
-		WithTests(
-			TestModeBookend,
-			TestModeSparse,
-			TestModeFull,
-			TestModeRowCount,
+		pgverify.WithTests(
+			pgverify.TestModeBookend,
+			pgverify.TestModeSparse,
+			pgverify.TestModeFull,
+			pgverify.TestModeRowCount,
 		),
-		ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
-		ExcludeColumns("ignored"),
-		WithAliases(aliases),
+		pgverify.ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
+		pgverify.ExcludeColumns("ignored"),
+		pgverify.WithAliases(aliases),
 	)
 	assert.NoError(t, err)
 	results.WriteAsTable(os.Stdout)

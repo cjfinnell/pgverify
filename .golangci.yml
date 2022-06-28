@@ -28,7 +28,6 @@ linters:
     - nlreturn # todo
     - prealloc # todo
     - revive # todo
-    - testpackage # todo
     - thelper # todo
     - unconvert # todo
     - varnamelen # todo

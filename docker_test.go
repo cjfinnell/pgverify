@@ -1,4 +1,4 @@
-package pgverify
+package pgverify_test
 
 import (
 	"context"
