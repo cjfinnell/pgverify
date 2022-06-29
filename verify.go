@@ -176,7 +176,7 @@ func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry
 				continue
 			}
 
-			var tableColumns []column
+			tableColumns := make(map[string]column)
 
 			for rows.Next() {
 				var columnName, dataType, constraintName pgtype.Text
@@ -189,7 +189,13 @@ func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry
 				}
 
 				if c.validColumnTarget(columnName.String) {
-					tableColumns = append(tableColumns, column{columnName.String, dataType.String, []string{constraintName.String}})
+					existing, ok := tableColumns[columnName.String]
+					if ok {
+						existing.constraints = append(existing.constraints, constraintName.String)
+						tableColumns[columnName.String] = existing
+					} else {
+						tableColumns[columnName.String] = column{columnName.String, dataType.String, []string{constraintName.String}}
+					}
 				}
 			}
 			tableLogger.Infof("Found %d columns", len(tableColumns))
