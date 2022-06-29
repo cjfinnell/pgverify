@@ -110,6 +110,27 @@ func (c Config) fetchTargetTableNames(ctx context.Context, logger *logrus.Entry,
 	return schemaTableHashes, nil
 }
 
+func (c Config) validColumnTarget(columnName string) bool {
+	if len(c.IncludeColumns) == 0 {
+		for _, excludedColumn := range c.ExcludeColumns {
+			if excludedColumn == columnName {
+
+				return false
+			}
+		}
+
+		return true
+	}
+
+	for _, includedColumn := range c.IncludeColumns {
+		if includedColumn == columnName {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, schemaTableHashes SingleResult) (SingleResult, error) {
 	for schemaName, tables := range schemaTableHashes {
 		for tableName := range tables {
@@ -128,7 +149,10 @@ func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry
 					tableLogger.WithError(err).Error("Failed to parse column names, data types from query response")
 					continue
 				}
-				tableColumns = append(tableColumns, column{columnName.String, dataType.String, constraintName.String})
+
+				if c.validColumnTarget(columnName.String) {
+					tableColumns = append(tableColumns, column{columnName.String, dataType.String, constraintName.String})
+				}
 			}
 			tableLogger.Infof("Found %d columns", len(tableColumns))
 
