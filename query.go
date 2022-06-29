@@ -2,13 +2,14 @@ package pgverify
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
 
+var reduceSpaceRegex = regexp.MustCompile(`\s+`)
+
 func formatQuery(query string) string {
-	for _, char := range []string{"\n", "\t", "  "} {
-		query = strings.ReplaceAll(query, char, " ")
-	}
+	query = reduceSpaceRegex.ReplaceAllString(query, " ")
 
 	return strings.TrimSpace(query)
 }

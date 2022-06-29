@@ -99,6 +99,10 @@ func calculateRowCount(columnTypes map[string][]string) int {
 }
 
 func TestVerifyData(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
 	// Arrange
 	ctx := context.Background()
 

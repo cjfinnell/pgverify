@@ -16,6 +16,10 @@ lint: .bin/golangci-lint
 lint-fix: .bin/golangci-lint
 	@.bin/golangci-lint run --fix
 
+.PHONY: unit-test
+unit-test:
+	go test -v -short ./...
+
 .PHONY: test
 test:
 	go test -v -cover -coverprofile coverage.txt -covermode=atomic ./...
