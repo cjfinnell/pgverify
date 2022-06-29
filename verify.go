@@ -14,27 +14,49 @@ import (
 // the supplied Options.
 func Verify(ctx context.Context, targets []*pgx.ConnConfig, opts ...Option) (*Results, error) {
 	c := NewConfig(opts...)
+
 	return c.Verify(ctx, targets)
 }
 
 // Verify runs all verification tests for the given table.
 func (c Config) Verify(ctx context.Context, targets []*pgx.ConnConfig) (*Results, error) {
+	var err error
+
 	var finalResults *Results
-	err := c.Validate()
-	if err != nil {
+
+	if err := c.Validate(); err != nil {
 		return finalResults, err
 	}
+
 	c.Logger.Infof("Verifying %d targets", len(targets))
 
 	// First check that we can connect to every specified target database.
-	var targetNames = make([]string, len(targets))
+	targetNames := make([]string, len(targets))
 	conns := make(map[int]*pgx.Conn)
+
 	for i, target := range targets {
+		pgxLoggerFields := logrus.Fields{
+			"component": "pgx",
+			"host":      targets[i].Host,
+			"port":      targets[i].Port,
+			"database":  targets[i].Database,
+			"user":      targets[i].User,
+		}
+
 		if len(c.Aliases) == len(targets) {
 			targetNames[i] = c.Aliases[i]
+			pgxLoggerFields["alias"] = c.Aliases[i]
 		} else {
 			targetNames[i] = targets[i].Host
 		}
+
+		target.Logger = &pgxLogger{c.Logger.WithFields(pgxLoggerFields)}
+
+		target.LogLevel, err = pgx.LogLevelFromString(c.Logger.Level.String())
+		if err != nil {
+			target.LogLevel = pgx.LogLevelError
+		}
+
 		conn, err := pgx.ConnectConfig(ctx, target)
 		if err != nil {
 			return finalResults, err
@@ -42,15 +64,18 @@ func (c Config) Verify(ctx context.Context, targets []*pgx.ConnConfig) (*Results
 		defer conn.Close(ctx)
 		conns[i] = conn
 	}
+
 	finalResults = NewResults(targetNames, c.TestModes)
 
 	// Then query each target database in parallel to generate table hashes.
 	var doneChannels []chan struct{}
+
 	for i, conn := range conns {
 		done := make(chan struct{})
 		go c.runTestsOnTarget(ctx, targetNames[i], conn, finalResults, done)
 		doneChannels = append(doneChannels, done)
 	}
+
 	for _, done := range doneChannels {
 		<-done
 	}
@@ -62,6 +87,7 @@ func (c Config) Verify(ctx context.Context, targets []*pgx.ConnConfig) (*Results
 	}
 
 	c.Logger.Info("Verification successful")
+
 	return finalResults, nil
 }
 
@@ -72,6 +98,7 @@ func (c Config) runTestsOnTarget(ctx context.Context, targetName string, conn *p
 	if err != nil {
 		logger.WithError(err).Error("failed to fetch target tables")
 		close(done)
+
 		return
 	}
 
@@ -79,6 +106,7 @@ func (c Config) runTestsOnTarget(ctx context.Context, targetName string, conn *p
 	if err != nil {
 		logger.WithError(err).Error("failed to run verification tests")
 		close(done)
+
 		return
 	}
 
@@ -89,24 +117,29 @@ func (c Config) runTestsOnTarget(ctx context.Context, targetName string, conn *p
 
 func (c Config) fetchTargetTableNames(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn) (SingleResult, error) {
 	schemaTableHashes := make(SingleResult)
+
 	rows, err := conn.Query(ctx, buildGetTablesQuery(c.IncludeSchemas, c.ExcludeSchemas, c.IncludeTables, c.ExcludeTables))
 	if err != nil {
 		return schemaTableHashes, errors.Wrap(err, "failed to query for tables")
 	}
+
 	for rows.Next() {
 		var schema, table pgtype.Text
-		err := rows.Scan(&schema, &table)
-		if err != nil {
+		if err := rows.Scan(&schema, &table); err != nil {
 			return schemaTableHashes, errors.Wrap(err, "failed to scan row data for table names")
 		}
+
 		if _, ok := schemaTableHashes[schema.String]; !ok {
 			schemaTableHashes[schema.String] = make(map[string]map[string]string)
 		}
+
 		schemaTableHashes[schema.String][table.String] = make(map[string]string)
+
 		for _, testMode := range c.TestModes {
 			schemaTableHashes[schema.String][table.String][testMode] = defaultErrorOutput
 		}
 	}
+
 	return schemaTableHashes, nil
 }
 
@@ -114,7 +147,6 @@ func (c Config) validColumnTarget(columnName string) bool {
 	if len(c.IncludeColumns) == 0 {
 		for _, excludedColumn := range c.ExcludeColumns {
 			if excludedColumn == columnName {
-
 				return false
 			}
 		}
@@ -136,17 +168,23 @@ func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry
 		for tableName := range tables {
 			tableLogger := logger.WithField("table", tableName).WithField("schema", schemaName)
 			tableLogger.Info("Computing hash")
+
 			rows, err := conn.Query(ctx, buildGetColumsQuery(schemaName, tableName))
 			if err != nil {
 				tableLogger.WithError(err).Error("Failed to query column names, data types")
+
 				continue
 			}
+
 			var tableColumns []column
+
 			for rows.Next() {
 				var columnName, dataType, constraintName pgtype.Text
+
 				err := rows.Scan(&columnName, &dataType, &constraintName)
 				if err != nil {
 					tableLogger.WithError(err).Error("Failed to parse column names, data types from query response")
+
 					continue
 				}
 
@@ -158,7 +196,9 @@ func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry
 
 			for _, testMode := range c.TestModes {
 				testLogger := tableLogger.WithField("test", testMode)
+
 				var query string
+
 				switch testMode {
 				case TestModeFull:
 					query = buildFullHashQuery(schemaName, tableName, tableColumns)
@@ -170,16 +210,21 @@ func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry
 					query = buildRowCountQuery(schemaName, tableName)
 				}
 
+				testLogger.Debugf("Generated query: %s", query)
+
 				testOutput, err := runTestOnTable(ctx, conn, query)
 				if err != nil {
 					testLogger.WithError(err).Error("Failed to compute hash")
+
 					continue
 				}
+
 				schemaTableHashes[schemaName][tableName][testMode] = testOutput
 				testLogger.Infof("Hash computed: %s", testOutput)
 			}
 		}
 	}
+
 	return schemaTableHashes, nil
 }
 
@@ -187,8 +232,7 @@ func runTestOnTable(ctx context.Context, conn *pgx.Conn, query string) (string, 
 	row := conn.QueryRow(ctx, query)
 
 	var testOutput pgtype.Text
-	err := row.Scan(&testOutput)
-	if err != nil {
+	if err := row.Scan(&testOutput); err != nil {
 		switch err {
 		case pgx.ErrNoRows:
 			return "no rows", nil
@@ -196,5 +240,6 @@ func runTestOnTable(ctx context.Context, conn *pgx.Conn, query string) (string, 
 			return "", errors.Wrap(err, "failed to scan test output")
 		}
 	}
+
 	return testOutput.String, nil
 }

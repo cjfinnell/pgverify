@@ -65,7 +65,7 @@ func (o optionFunc) apply(c *Config) {
 	o(c)
 }
 
-// NewConfig returns a new Config with default values overriden
+// NewConfig returns a new Config with default values overridden
 // by the supplied Options.
 func NewConfig(opts ...Option) Config {
 	c := Config{}
@@ -75,9 +75,11 @@ func NewConfig(opts ...Option) Config {
 		WithBookendLimit(TestModeBookendDefaultLimit),
 		WithSparseMod(TestModeSparseDefaultMod),
 	}
+
 	for _, opt := range append(defaultOpts, opts...) {
 		opt.apply(&c)
 	}
+
 	return c
 }
 
@@ -93,6 +95,7 @@ func (c Config) Validate() error {
 			return fmt.Errorf("invalid strategy: %s", c.TestModes)
 		}
 	}
+
 	return nil
 }
 

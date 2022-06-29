@@ -2,8 +2,17 @@ package pgverify
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 )
+
+var reduceSpaceRegex = regexp.MustCompile(`\s+`)
+
+func formatQuery(query string) string {
+	query = reduceSpaceRegex.ReplaceAllString(query, " ")
+
+	return strings.TrimSpace(query)
+}
 
 // Constructs a query that returns a list of tables with schemas that will be
 // used for verification, translating the provided filter configuration to a
@@ -20,7 +29,9 @@ func buildGetTablesQuery(includeSchemas, excludeSchemas, includeTables, excludeT
 				whereClause += ", "
 			}
 		}
+
 		whereClause += ")"
+
 		whereClauses = append(whereClauses, whereClause)
 	} else if len(excludeSchemas) > 0 {
 		whereClause := "table_schema NOT IN ("
@@ -42,7 +53,9 @@ func buildGetTablesQuery(includeSchemas, excludeSchemas, includeTables, excludeT
 				whereClause += ", "
 			}
 		}
+
 		whereClause += ")"
+
 		whereClauses = append(whereClauses, whereClause)
 	} else if len(excludeTables) > 0 {
 		whereClause := "table_name NOT IN ("
@@ -60,13 +73,13 @@ func buildGetTablesQuery(includeSchemas, excludeSchemas, includeTables, excludeT
 		query += " WHERE " + strings.Join(whereClauses, " AND ")
 	}
 
-	return query
+	return formatQuery(query)
 }
 
 // Constructs a query that returns a list of columns for the given table,
 // including the column name, data type, and constraint.
 func buildGetColumsQuery(schemaName, tableName string) string {
-	return fmt.Sprintf(`
+	return formatQuery(fmt.Sprintf(`
 		SELECT c.column_name, c.data_type, k.constraint_name
 		FROM information_schema.columns as c
 			LEFT OUTER JOIN information_schema.key_column_usage as k ON (
@@ -75,7 +88,7 @@ func buildGetColumsQuery(schemaName, tableName string) string {
 				c.table_schema = k.table_schema
 			)
 		WHERE c.table_name = '%s' AND c.table_schema = '%s'
-		`, tableName, schemaName)
+		`, tableName, schemaName))
 }
 
 // Constructs a query for test mode full that generates a MD5 hash of each row,
@@ -86,11 +99,11 @@ func buildFullHashQuery(schemaName, tableName string, columns []column) string {
 		columnsWithCasting = append(columnsWithCasting, column.CastToText())
 	}
 
-	return fmt.Sprintf(`
+	return formatQuery(fmt.Sprintf(`
 		SELECT md5(string_agg(hash, ''))
 		FROM (SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash FROM "%s"."%s" ORDER BY 2) AS eachrow
 		GROUP BY grouper
-		`, strings.Join(columnsWithCasting, ", "), schemaName, tableName)
+		`, strings.Join(columnsWithCasting, ", "), schemaName, tableName))
 }
 
 // Similar to the full test query, this test differs by first selecting a subset
@@ -98,15 +111,18 @@ func buildFullHashQuery(schemaName, tableName string, columns []column) string {
 // based off of that value modulo the configured SparseMod value.
 func buildSparseHashQuery(schemaName, tableName string, columns []column, sparseMod int) string {
 	var columnsWithCasting []string
+
 	var primaryKey column
+
 	for _, column := range columns {
 		columnsWithCasting = append(columnsWithCasting, column.CastToText())
+
 		if column.IsPrimaryKey() {
 			primaryKey = column
 		}
 	}
 
-	return fmt.Sprintf(`
+	return formatQuery(fmt.Sprintf(`
 		SELECT md5(string_agg(hash, ''))
 		FROM (
 			SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash
@@ -126,7 +142,7 @@ func buildSparseHashQuery(schemaName, tableName string, columns []column, sparse
 		primaryKey.name,
 		schemaName, tableName,
 		primaryKey.CastToText(),
-		sparseMod)
+		sparseMod))
 }
 
 // Like the full test query, but only looks at the first and last N rows for generating hashes.
@@ -135,9 +151,10 @@ func buildBookendHashQuery(schemaName, tableName string, columns []column, limit
 	for _, column := range columns {
 		columnsWithCasting = append(columnsWithCasting, column.CastToText())
 	}
+
 	allColumnsWithCasting := strings.Join(columnsWithCasting, ", ")
 
-	return fmt.Sprintf(`
+	return formatQuery(fmt.Sprintf(`
 		SELECT md5(CONCAT(starthash::TEXT, endhash::TEXT))
 		FROM (
 			SELECT md5(string_agg(hash, ''))
@@ -158,10 +175,10 @@ func buildBookendHashQuery(schemaName, tableName string, columns []column, limit
 			) AS eachrow
 			GROUP BY grouper
 		) as endhash
-		`, allColumnsWithCasting, schemaName, tableName, limit, allColumnsWithCasting, schemaName, tableName, limit)
+		`, allColumnsWithCasting, schemaName, tableName, limit, allColumnsWithCasting, schemaName, tableName, limit))
 }
 
 // A minimal test that simply counts the number of rows.
 func buildRowCountQuery(schemaName, tableName string) string {
-	return fmt.Sprintf(`SELECT count(*)::TEXT FROM "%s"."%s"`, schemaName, tableName)
+	return formatQuery(fmt.Sprintf(`SELECT count(*)::TEXT FROM "%s"."%s"`, schemaName, tableName))
 }

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// column represents a column in a table
+// column represents a column in a table.
 type column struct {
 	name       string
 	dataType   string
@@ -18,6 +18,7 @@ func (c column) IsPrimaryKey() bool {
 	if c.constraint == "primary" || strings.HasSuffix(c.constraint, "_pkey") {
 		return true
 	}
+
 	return false
 }
 

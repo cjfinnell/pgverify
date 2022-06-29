@@ -11,7 +11,7 @@ import (
 	"github.com/cjfinnell/pgverify"
 )
 
-// Flags
+// Flags.
 var (
 	aliasesFlag, excludeSchemasFlag, excludeTablesFlag, includeSchemasFlag, includeTablesFlag, includeColumnsFlag, excludeColumnsFlag, testModesFlag *[]string
 	logLevelFlag                                                                                                                                     *string
@@ -33,6 +33,7 @@ func init() {
 			pgverify.TestModeFull,
 			pgverify.TestModeBookend,
 			pgverify.TestModeSparse,
+			pgverify.TestModeRowCount,
 		}, ",")+")")
 
 	bookendLimitFlag = rootCmd.Flags().Int("bookend-limit", pgverify.TestModeBookendDefaultLimit, "only check the first and last N rows (with --tests=bookend)")
@@ -71,7 +72,7 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			levelInt = log.InfoLevel
 		}
-		logger.SetLevel(log.Level(levelInt))
+		logger.SetLevel(levelInt)
 		opts = append(opts, pgverify.WithLogger(logger))
 
 		if len(*aliasesFlag) > 0 {
@@ -80,6 +81,7 @@ var rootCmd = &cobra.Command{
 
 		report, err := pgverify.Verify(cmd.Context(), targets, opts...)
 		report.WriteAsTable(cmd.OutOrStdout())
+
 		return err
 	},
 }
