@@ -189,7 +189,7 @@ func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry
 				}
 
 				if c.validColumnTarget(columnName.String) {
-					tableColumns = append(tableColumns, column{columnName.String, dataType.String, constraintName.String})
+					tableColumns = append(tableColumns, column{columnName.String, dataType.String, []string{constraintName.String}})
 				}
 			}
 			tableLogger.Infof("Found %d columns", len(tableColumns))

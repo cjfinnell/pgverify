@@ -7,16 +7,18 @@ import (
 
 // column represents a column in a table.
 type column struct {
-	name       string
-	dataType   string
-	constraint string
+	name        string
+	dataType    string
+	constraints []string
 }
 
 // IsPrimaryKey attempts to parse the constraint string to determine if the
 // column is a primary key.
 func (c column) IsPrimaryKey() bool {
-	if c.constraint == "primary" || strings.HasSuffix(c.constraint, "_pkey") {
-		return true
+	for _, constraint := range c.constraints {
+		if constraint == "primary" || strings.HasSuffix(constraint, "_pkey") {
+			return true
+		}
 	}
 
 	return false

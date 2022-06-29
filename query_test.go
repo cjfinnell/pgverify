@@ -44,7 +44,7 @@ func TestBuildFullHashQuery(t *testing.T) {
 			schemaName: "testSchema",
 			tableName:  "testTable",
 			columns: []column{
-				{name: "id", dataType: "uuid", constraint: "this_is_a_pkey"},
+				{name: "id", dataType: "uuid", constraints: []string{"this_is_a_pkey"}},
 				{name: "content", dataType: "text"},
 				{name: "when", dataType: "timestamp with time zone"},
 			},
