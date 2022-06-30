@@ -33,6 +33,7 @@ func TestBuildFullHashQuery(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 
+		config     Config
 		schemaName string
 		tableName  string
 		columns    map[string]column
@@ -41,6 +42,7 @@ func TestBuildFullHashQuery(t *testing.T) {
 	}{
 		{
 			name:       "happy path",
+			config:     Config{TimestampPrecision: TimestampPrecisionMilliseconds},
 			schemaName: "testSchema",
 			tableName:  "testTable",
 			columns: map[string]column{
@@ -57,7 +59,7 @@ func TestBuildFullHashQuery(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.expectedQuery, buildFullHashQuery(tc.schemaName, tc.tableName, tc.columns))
+			require.Equal(t, tc.expectedQuery, buildFullHashQuery(tc.config, tc.schemaName, tc.tableName, tc.columns))
 		})
 	}
 }

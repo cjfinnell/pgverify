@@ -207,11 +207,11 @@ func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry
 
 				switch testMode {
 				case TestModeFull:
-					query = buildFullHashQuery(schemaName, tableName, tableColumns)
+					query = buildFullHashQuery(c, schemaName, tableName, tableColumns)
 				case TestModeBookend:
-					query = buildBookendHashQuery(schemaName, tableName, tableColumns, c.BookendLimit)
+					query = buildBookendHashQuery(c, schemaName, tableName, tableColumns, c.BookendLimit)
 				case TestModeSparse:
-					query = buildSparseHashQuery(schemaName, tableName, tableColumns, c.SparseMod)
+					query = buildSparseHashQuery(c, schemaName, tableName, tableColumns, c.SparseMod)
 				case TestModeRowCount:
 					query = buildRowCountQuery(schemaName, tableName)
 				}
