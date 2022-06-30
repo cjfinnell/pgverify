@@ -35,7 +35,7 @@ func TestBuildFullHashQuery(t *testing.T) {
 
 		schemaName string
 		tableName  string
-		columns    []column
+		columns    map[string]column
 
 		expectedQuery string
 	}{
@@ -43,15 +43,15 @@ func TestBuildFullHashQuery(t *testing.T) {
 			name:       "happy path",
 			schemaName: "testSchema",
 			tableName:  "testTable",
-			columns: []column{
-				{name: "id", dataType: "uuid", constraint: "this_is_a_pkey"},
-				{name: "content", dataType: "text"},
-				{name: "when", dataType: "timestamp with time zone"},
+			columns: map[string]column{
+				"id":      {name: "id", dataType: "uuid", constraints: []string{"this_is_a_pkey", "another constraint"}},
+				"content": {name: "content", dataType: "text"},
+				"when":    {name: "when", dataType: "timestamp with time zone"},
 			},
 			expectedQuery: formatQuery(`
 				SELECT md5(string_agg(hash, ''))  
 				FROM 
-					(SELECT '' AS grouper, MD5(CONCAT(id::TEXT, content::TEXT, trunc(extract(epoch from when)::NUMERIC)::TEXT)) AS hash 
+					(SELECT '' AS grouper, MD5(CONCAT(content::TEXT, id::TEXT, trunc(extract(epoch from when)::NUMERIC)::TEXT)) AS hash 
 					FROM "testSchema"."testTable" ORDER BY 2)
 				AS eachrow  GROUP BY grouper`),
 		},
