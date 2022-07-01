@@ -33,33 +33,33 @@ func TestBuildFullHashQuery(t *testing.T) {
 	for _, tc := range []struct {
 		name string
 
-		config     Config
-		schemaName string
-		tableName  string
-		columns    map[string]column
+		config        Config
+		schemaName    string
+		tableName     string
+		primaryColumn column
+		columns       []column
 
 		expectedQuery string
 	}{
 		{
-			name:       "happy path",
-			config:     Config{TimestampPrecision: TimestampPrecisionMilliseconds},
-			schemaName: "testSchema",
-			tableName:  "testTable",
-			columns: map[string]column{
-				"id":      {name: "id", dataType: "uuid", constraints: []string{"this_is_a_pkey", "another constraint"}},
-				"content": {name: "content", dataType: "text"},
-				"when":    {name: "when", dataType: "timestamp with time zone"},
+			name:          "happy path",
+			config:        Config{TimestampPrecision: TimestampPrecisionMilliseconds},
+			schemaName:    "testSchema",
+			tableName:     "testTable",
+			primaryColumn: column{name: "id", dataType: "uuid", constraints: []string{"this_is_a_pkey", "another constraint"}},
+			columns: []column{
+				{name: "content", dataType: "text"},
+				{name: "when", dataType: "timestamp with time zone"},
 			},
 			expectedQuery: formatQuery(`
-				SELECT md5(string_agg(hash, ''))  
-				FROM 
-					(SELECT '' AS grouper, MD5(CONCAT(content::TEXT, extract(epoch from date_trunc('milliseconds', when))::TEXT, id::TEXT)) AS hash 
-					FROM "testSchema"."testTable" ORDER BY 2)
-				AS eachrow  GROUP BY grouper`),
+            SELECT md5(string_agg(hash, ''))
+            FROM
+                (SELECT '' AS grouper, MD5(CONCAT(content::TEXT, extract(epoch from date_trunc('milliseconds', when))::TEXT)) AS hash
+                FROM "testSchema"."testTable" ORDER BY id) AS eachrow GROUP BY grouper`),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.expectedQuery, buildFullHashQuery(tc.config, tc.schemaName, tc.tableName, tc.columns))
+			require.Equal(t, tc.expectedQuery, buildFullHashQuery(tc.config, tc.schemaName, tc.tableName, tc.primaryColumn, tc.columns))
 		})
 	}
 }

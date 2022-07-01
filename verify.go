@@ -176,7 +176,7 @@ func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry
 				continue
 			}
 
-			tableColumns := make(map[string]column)
+			allTableColumns := make(map[string]column)
 
 			for rows.Next() {
 				var columnName, dataType, constraintName pgtype.Text
@@ -188,17 +188,39 @@ func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry
 					continue
 				}
 
-				if c.validColumnTarget(columnName.String) {
-					existing, ok := tableColumns[columnName.String]
-					if ok {
-						existing.constraints = append(existing.constraints, constraintName.String)
-						tableColumns[columnName.String] = existing
-					} else {
-						tableColumns[columnName.String] = column{columnName.String, dataType.String, []string{constraintName.String}}
-					}
+				existing, ok := allTableColumns[columnName.String]
+				if ok {
+					existing.constraints = append(existing.constraints, constraintName.String)
+					allTableColumns[columnName.String] = existing
+				} else {
+					allTableColumns[columnName.String] = column{columnName.String, dataType.String, []string{constraintName.String}}
 				}
 			}
-			tableLogger.Infof("Found %d columns", len(tableColumns))
+
+			var tableColumns []column
+
+			var primaryKeyColumn column
+
+			for _, col := range allTableColumns {
+				if col.IsPrimaryKey() {
+					primaryKeyColumn = col
+				}
+
+				if c.validColumnTarget(col.name) {
+					tableColumns = append(tableColumns, col)
+				}
+			}
+
+			if primaryKeyColumn.name == "" {
+				tableLogger.Error("No primary key found")
+
+				continue
+			}
+
+			tableLogger.WithFields(logrus.Fields{
+				"primary_key": primaryKeyColumn,
+				"columns":     tableColumns,
+			}).Info("Determined columns to hash")
 
 			for _, testMode := range c.TestModes {
 				testLogger := tableLogger.WithField("test", testMode)
@@ -207,11 +229,11 @@ func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry
 
 				switch testMode {
 				case TestModeFull:
-					query = buildFullHashQuery(c, schemaName, tableName, tableColumns)
+					query = buildFullHashQuery(c, schemaName, tableName, primaryKeyColumn, tableColumns)
 				case TestModeBookend:
-					query = buildBookendHashQuery(c, schemaName, tableName, tableColumns, c.BookendLimit)
+					query = buildBookendHashQuery(c, schemaName, tableName, primaryKeyColumn, tableColumns, c.BookendLimit)
 				case TestModeSparse:
-					query = buildSparseHashQuery(c, schemaName, tableName, tableColumns, c.SparseMod)
+					query = buildSparseHashQuery(c, schemaName, tableName, primaryKeyColumn, tableColumns, c.SparseMod)
 				case TestModeRowCount:
 					query = buildRowCountQuery(schemaName, tableName)
 				}
