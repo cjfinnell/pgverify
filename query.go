@@ -94,10 +94,10 @@ func buildGetColumsQuery(schemaName, tableName string) string {
 
 // Constructs a query for test mode full that generates a MD5 hash of each row,
 // aggregates those hashes, and outputs a single hash of those hashes.
-func buildFullHashQuery(schemaName, tableName string, columns map[string]column) string {
+func buildFullHashQuery(config Config, schemaName, tableName string, columns map[string]column) string {
 	var columnsWithCasting []string
 	for _, column := range columns {
-		columnsWithCasting = append(columnsWithCasting, column.CastToText())
+		columnsWithCasting = append(columnsWithCasting, column.CastToText(config.TimestampPrecision))
 	}
 
 	sort.Strings(columnsWithCasting)
@@ -112,13 +112,13 @@ func buildFullHashQuery(schemaName, tableName string, columns map[string]column)
 // Similar to the full test query, this test differs by first selecting a subset
 // of the rows by casting the primary key value to an integer, then bucketing
 // based off of that value modulo the configured SparseMod value.
-func buildSparseHashQuery(schemaName, tableName string, columns map[string]column, sparseMod int) string {
+func buildSparseHashQuery(config Config, schemaName, tableName string, columns map[string]column, sparseMod int) string {
 	var columnsWithCasting []string
 
 	var primaryKey column
 
 	for _, column := range columns {
-		columnsWithCasting = append(columnsWithCasting, column.CastToText())
+		columnsWithCasting = append(columnsWithCasting, column.CastToText(config.TimestampPrecision))
 
 		if column.IsPrimaryKey() {
 			primaryKey = column
@@ -146,15 +146,15 @@ func buildSparseHashQuery(schemaName, tableName string, columns map[string]colum
 		primaryKey.name,
 		primaryKey.name,
 		schemaName, tableName,
-		primaryKey.CastToText(),
+		primaryKey.CastToText(config.TimestampPrecision),
 		sparseMod))
 }
 
 // Like the full test query, but only looks at the first and last N rows for generating hashes.
-func buildBookendHashQuery(schemaName, tableName string, columns map[string]column, limit int) string {
+func buildBookendHashQuery(config Config, schemaName, tableName string, columns map[string]column, limit int) string {
 	var columnsWithCasting []string
 	for _, column := range columns {
-		columnsWithCasting = append(columnsWithCasting, column.CastToText())
+		columnsWithCasting = append(columnsWithCasting, column.CastToText(config.TimestampPrecision))
 	}
 
 	sort.Strings(columnsWithCasting)

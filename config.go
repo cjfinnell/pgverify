@@ -25,6 +25,8 @@ const (
 
 	// A rowcount test simply compares table row counts between targets.
 	TestModeRowCount = "rowcount"
+
+	TimestampPrecisionMilliseconds = "milliseconds"
 )
 
 // Config represents the configuration for running a verification.
@@ -51,6 +53,9 @@ type Config struct {
 	// supplied targets.
 	Aliases []string
 
+	// TimestampPrecision is the precision level to use when comparing timestamp values.
+	TimestampPrecision string
+
 	Logger *log.Logger
 }
 
@@ -74,6 +79,7 @@ func NewConfig(opts ...Option) Config {
 		WithTests(TestModeFull),
 		WithBookendLimit(TestModeBookendDefaultLimit),
 		WithSparseMod(TestModeSparseDefaultMod),
+		WithTimestampPrecision(TimestampPrecisionMilliseconds),
 	}
 
 	for _, opt := range append(defaultOpts, opts...) {
@@ -176,5 +182,14 @@ func WithSparseMod(mod int) optionFunc {
 func WithAliases(aliases []string) optionFunc {
 	return func(c *Config) {
 		c.Aliases = aliases
+	}
+}
+
+// WithTimestampPrecision sets the precision level to use when comparing
+// timestamp values. This can be useful for addressing precision differences
+// between engines, i.e. millisecond vs. microsecond.
+func WithTimestampPrecision(precision string) optionFunc {
+	return func(c *Config) {
+		c.TimestampPrecision = precision
 	}
 }

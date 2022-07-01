@@ -26,11 +26,11 @@ func (c column) IsPrimaryKey() bool {
 
 // CastToText generates PSQL expression to cast the column to the TEXT type in
 // a way that is consistent between supported databases.
-func (c column) CastToText() string {
+func (c column) CastToText(precision string) string {
 	switch strings.ToLower(c.dataType) {
 	case "timestamp with time zone":
 		// Truncating the epoch means that timestamps will be compared "to the second"; timestamps with ms/ns differences will be considered equal.
-		return fmt.Sprintf("trunc(extract(epoch from %s)::NUMERIC)::TEXT", c.name)
+		return fmt.Sprintf("extract(epoch from date_trunc('%s', %s))::TEXT", precision, c.name)
 	default:
 		return c.name + "::TEXT"
 	}

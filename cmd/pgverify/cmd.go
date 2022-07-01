@@ -14,7 +14,7 @@ import (
 // Flags.
 var (
 	aliasesFlag, excludeSchemasFlag, excludeTablesFlag, includeSchemasFlag, includeTablesFlag, includeColumnsFlag, excludeColumnsFlag, testModesFlag *[]string
-	logLevelFlag                                                                                                                                     *string
+	logLevelFlag, timestampPrecisionFlag                                                                                                             *string
 	bookendLimitFlag, sparseModFlag                                                                                                                  *int
 )
 
@@ -27,6 +27,7 @@ func init() {
 	includeTablesFlag = rootCmd.Flags().StringSlice("include-tables", []string{}, "tables to verify (comma separated, defaults to all)")
 	includeColumnsFlag = rootCmd.Flags().StringSlice("include-columns", []string{}, "columns to explicitly verify (comma separated, defaults to all)")
 
+	timestampPrecisionFlag = rootCmd.Flags().String("tz-precision", "milliseconds", "precision level to use when comparing timestamps")
 	logLevelFlag = rootCmd.Flags().String("level", "info", "logging level")
 	testModesFlag = rootCmd.Flags().StringSliceP("tests", "t", []string{pgverify.TestModeFull},
 		"tests to use for verification (comma separated, options: "+strings.Join([]string{
@@ -64,6 +65,7 @@ var rootCmd = &cobra.Command{
 			pgverify.WithTests(*testModesFlag...),
 			pgverify.WithSparseMod(*sparseModFlag),
 			pgverify.WithBookendLimit(*bookendLimitFlag),
+			pgverify.WithTimestampPrecision(*timestampPrecisionFlag),
 		}
 
 		logger := log.New()
