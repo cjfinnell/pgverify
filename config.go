@@ -56,7 +56,7 @@ type Config struct {
 	// TimestampPrecision is the precision level to use when comparing timestamp values.
 	TimestampPrecision string
 
-	Logger *log.Logger
+	Logger log.FieldLogger
 }
 
 // Option interface used for setting optional config properties.
@@ -106,7 +106,7 @@ func (c Config) Validate() error {
 }
 
 // WithLogger sets the logger configuration.
-func WithLogger(logger *log.Logger) optionFunc {
+func WithLogger(logger log.FieldLogger) optionFunc {
 	return func(c *Config) {
 		c.Logger = logger
 	}

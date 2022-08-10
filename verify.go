@@ -20,8 +20,6 @@ func Verify(ctx context.Context, targets []*pgx.ConnConfig, opts ...Option) (*Re
 
 // Verify runs all verification tests for the given table.
 func (c Config) Verify(ctx context.Context, targets []*pgx.ConnConfig) (*Results, error) {
-	var err error
-
 	var finalResults *Results
 
 	if err := c.Validate(); err != nil {
@@ -52,10 +50,7 @@ func (c Config) Verify(ctx context.Context, targets []*pgx.ConnConfig) (*Results
 
 		target.Logger = &pgxLogger{c.Logger.WithFields(pgxLoggerFields)}
 
-		target.LogLevel, err = pgx.LogLevelFromString(c.Logger.Level.String())
-		if err != nil {
-			target.LogLevel = pgx.LogLevelError
-		}
+		target.LogLevel = pgx.LogLevelError
 
 		conn, err := pgx.ConnectConfig(ctx, target)
 		if err != nil {
