@@ -104,9 +104,9 @@ func buildFullHashQuery(config Config, schemaName, tableName string, primaryColu
 
 	return formatQuery(fmt.Sprintf(`
 		SELECT md5(string_agg(hash, ''))
-		FROM (SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash FROM "%s"."%s" ORDER BY %s) AS eachrow
+		FROM (SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash FROM "%s"."%s" ORDER BY hash) AS eachrow
 		GROUP BY grouper
-		`, strings.Join(columnsWithCasting, ", "), schemaName, tableName, primaryColumn.name))
+		`, strings.Join(columnsWithCasting, ", "), schemaName, tableName))
 }
 
 // Similar to the full test query, this test differs by first selecting a subset
