@@ -46,7 +46,7 @@ func TestBuildFullHashQuery(t *testing.T) {
 			config:        Config{TimestampPrecision: TimestampPrecisionMilliseconds},
 			schemaName:    "testSchema",
 			tableName:     "testTable",
-			primaryColumn: column{name: "id", dataType: "uuid", constraints: []string{"this_is_a_pkey", "another constraint"}},
+			primaryColumn: column{name: "id", dataType: "uuid", constraints: []string{"PRIMARY KEY", "another constraint"}},
 			columns: []column{
 				{name: "content", dataType: "text"},
 				{name: "when", dataType: "timestamp with time zone"},

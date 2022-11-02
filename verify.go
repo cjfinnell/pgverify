@@ -174,9 +174,9 @@ func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry
 			allTableColumns := make(map[string]column)
 
 			for rows.Next() {
-				var columnName, dataType, constraintName pgtype.Text
+				var columnName, dataType, constraintName, constraintType pgtype.Text
 
-				err := rows.Scan(&columnName, &dataType, &constraintName)
+				err := rows.Scan(&columnName, &dataType, &constraintName, &constraintType)
 				if err != nil {
 					tableLogger.WithError(err).Error("Failed to parse column names, data types from query response")
 
@@ -185,10 +185,10 @@ func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry
 
 				existing, ok := allTableColumns[columnName.String]
 				if ok {
-					existing.constraints = append(existing.constraints, constraintName.String)
+					existing.constraints = append(existing.constraints, constraintType.String)
 					allTableColumns[columnName.String] = existing
 				} else {
-					allTableColumns[columnName.String] = column{columnName.String, dataType.String, []string{constraintName.String}}
+					allTableColumns[columnName.String] = column{columnName.String, dataType.String, []string{constraintType.String}}
 				}
 			}
 

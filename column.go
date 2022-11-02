@@ -15,8 +15,8 @@ type column struct {
 // IsPrimaryKey attempts to parse the constraint string to determine if the
 // column is a primary key.
 func (c column) IsPrimaryKey() bool {
-	for _, constraint := range c.constraints {
-		if constraint == "primary" || strings.HasSuffix(constraint, "_pkey") {
+	for _, constraintType := range c.constraints {
+		if constraintType == "PRIMARY KEY" {
 			return true
 		}
 	}

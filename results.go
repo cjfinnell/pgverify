@@ -39,7 +39,7 @@ func NewResults(targetNames []string, testModes []string) *Results {
 }
 
 // SingleResult represents the verification result from a single target, with the schema:
-//   SingleResult[schema][table][mode] = test output
+// SingleResult[schema][table][mode] = test output.
 type SingleResult map[string]map[string]map[string]string
 
 // AddResult adds a SingleResult from a test on a specific target to the Results object.
