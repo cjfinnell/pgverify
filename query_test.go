@@ -54,7 +54,7 @@ func TestBuildFullHashQuery(t *testing.T) {
 			expectedQuery: formatQuery(`
             SELECT md5(string_agg(hash, ''))
             FROM
-                (SELECT '' AS grouper, MD5(CONCAT(content::TEXT, extract(epoch from date_trunc('milliseconds', when))::TEXT)) AS hash
+                (SELECT '' AS grouper, MD5(CONCAT((extract(epoch from date_trunc('milliseconds', when))::DECIMAL * 1000000)::BIGINT::TEXT, content::TEXT)) AS hash
                 FROM "testSchema"."testTable" ORDER BY id) AS eachrow GROUP BY grouper`),
 		},
 	} {
