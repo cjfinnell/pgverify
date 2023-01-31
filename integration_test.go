@@ -153,6 +153,18 @@ func TestVerifyData(t *testing.T) {
 			db:           "/" + dbName,
 		},
 		{
+			image: "postgres:12.11",
+			cmd:   []string{"postgres"},
+			env: []string{
+				fmt.Sprintf("POSTGRES_DB=%s", dbName),
+				fmt.Sprintf("POSTGRES_USER=%s", dbUser),
+				fmt.Sprintf("POSTGRES_PASSWORD=%s", dbPassword),
+			},
+			port:         5432,
+			userPassword: dbUser + ":" + dbPassword,
+			db:           "/" + dbName,
+		},
+		{
 			image:        "cockroachdb/cockroach:v21.2.0",
 			cmd:          []string{"start-single-node", "--insecure"},
 			port:         26257,
@@ -160,6 +172,12 @@ func TestVerifyData(t *testing.T) {
 		},
 		{
 			image:        "cockroachdb/cockroach:v21.2.12",
+			cmd:          []string{"start-single-node", "--insecure"},
+			port:         26257,
+			userPassword: "root",
+		},
+		{
+			image:        "cockroachdb/cockroach:v22.2.3",
 			cmd:          []string{"start-single-node", "--insecure"},
 			port:         26257,
 			userPassword: "root",
