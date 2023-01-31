@@ -204,7 +204,7 @@ func TestVerifyData(t *testing.T) {
 		"uuid":                  {fmt.Sprintf("'%s'", uuid.New().String())},
 		`character varying(64)`: {`'more string stuff'`},
 
-		"jsonb": {`'{}'`, `'{"foo": ["bar", "baz"]}'`, `'{"foo": "bar"}'`, `'{"foo": "bar", "baz": "qux"}'`},
+		"jsonb": {`'{}'`, `'{"foo": ["bar", "baz"]}'`, `'{"foo": "bar"}'`, `'{"foo": "bar", "baz": "qux"}'`, `'{"for sure?": true, "has numbers": 123.456, "this is": ["some", "json", "blob"]}'`},
 
 		"date":                        {`'2020-12-31'`},
 		"timestamp with time zone":    {`'2020-12-31 23:59:59 -8:00'`, `'2022-06-08 20:03:06.957223+00'`}, // hashes differently for psql/crdb, convert to epoch when hashing
