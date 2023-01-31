@@ -67,6 +67,10 @@ See `pgverify --help` for flag configuration options.
 | `sparse`   | Generates an MD5 hash from approximately `1/X` rows in a table, configured by `--sparse-mod X`.             |
 | `rowcount` | Simply queries and compares total row count for a table.                                                    |
 
+# Gotchas
+
+* Due to PostgreSQL and CockroachDB having slightly differing ways of sorting keys in a `jsonb` value, this tool uses `length(jsonb::text)` as a low-fidelity proxy fingerprint.
+
 <!-- Links -->
 [crdb]: https://www.cockroachlabs.com/
 [psql]: https://www.postgresql.org/
