@@ -153,6 +153,18 @@ func TestVerifyData(t *testing.T) {
 			db:           "/" + dbName,
 		},
 		{
+			image: "postgres:12.11",
+			cmd:   []string{"postgres"},
+			env: []string{
+				fmt.Sprintf("POSTGRES_DB=%s", dbName),
+				fmt.Sprintf("POSTGRES_USER=%s", dbUser),
+				fmt.Sprintf("POSTGRES_PASSWORD=%s", dbPassword),
+			},
+			port:         5432,
+			userPassword: dbUser + ":" + dbPassword,
+			db:           "/" + dbName,
+		},
+		{
 			image:        "cockroachdb/cockroach:v21.2.0",
 			cmd:          []string{"start-single-node", "--insecure"},
 			port:         26257,
@@ -160,6 +172,12 @@ func TestVerifyData(t *testing.T) {
 		},
 		{
 			image:        "cockroachdb/cockroach:v21.2.12",
+			cmd:          []string{"start-single-node", "--insecure"},
+			port:         26257,
+			userPassword: "root",
+		},
+		{
+			image:        "cockroachdb/cockroach:v22.2.3",
 			cmd:          []string{"start-single-node", "--insecure"},
 			port:         26257,
 			userPassword: "root",
@@ -186,7 +204,7 @@ func TestVerifyData(t *testing.T) {
 		"uuid":                  {fmt.Sprintf("'%s'", uuid.New().String())},
 		`character varying(64)`: {`'more string stuff'`},
 
-		"jsonb": {`'{}'`, `'{"foo": ["bar", "baz"]}'`, `'{"foo": "bar"}'`, `'{"foo": "bar", "baz": "qux"}'`},
+		"jsonb": {`'{}'`, `'{"foo": ["bar", "baz"]}'`, `'{"foo": "bar"}'`, `'{"foo": "bar", "baz": "qux"}'`, `'{"for sure?": true, "has numbers": 123.456, "this is": ["some", "json", "blob"]}'`},
 
 		"date":                        {`'2020-12-31'`},
 		"timestamp with time zone":    {`'2020-12-31 23:59:59 -8:00'`, `'2022-06-08 20:03:06.957223+00'`}, // hashes differently for psql/crdb, convert to epoch when hashing
