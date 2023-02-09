@@ -16,6 +16,7 @@ import (
 	"github.com/cjfinnell/pgverify"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -233,14 +234,14 @@ func TestVerifyData(t *testing.T) {
 	sort.Strings(sortedTypes)
 
 	tableNames := []string{"testtable1", "testtable2", "testtable3"}
-	createTableQueryBase := fmt.Sprintf("( id INT PRIMARY KEY, ignored TIMESTAMP WITH TIME ZONE DEFAULT NOW(), %s);", strings.Join(keysWithTypes, ", "))
+	createTableQueryBase := fmt.Sprintf("( id INT DEFAULT 0 NOT NULL, zid INT DEFAULT 0 NOT NULL, ignored TIMESTAMP WITH TIME ZONE DEFAULT NOW(), %s);", strings.Join(keysWithTypes, ", "))
 
 	rowCount := calculateRowCount(columnTypes)
-	insertDataQueryBase := `(id, ` + strings.Join(keys, ", ") + `) VALUES `
+	insertDataQueryBase := `(id, zid,` + strings.Join(keys, ", ") + `) VALUES `
 	valueClauses := make([]string, 0, rowCount)
 
 	for rowID := 0; rowID < rowCount; rowID++ {
-		valueClause := `(` + strconv.Itoa(rowID)
+		valueClause := `(` + strconv.Itoa(rowID) + `, 0`
 		for _, columnType := range sortedTypes {
 			valueClause += `, ` + columnTypes[columnType][rowID%len(columnTypes[columnType])]
 		}
@@ -274,6 +275,15 @@ func TestVerifyData(t *testing.T) {
 			_, err = conn.Exec(ctx, createTableQuery)
 			assert.NoError(t, err, "Failed to create table %s on %v with query: %s", tableName, db.image, createTableQuery)
 
+			pkeyString := fmt.Sprintf("single_col_pkey_%s PRIMARY KEY (id)", tableName)
+			if tableName == "testtable2" {
+				pkeyString = fmt.Sprintf("multi_col_pkey_%s PRIMARY KEY (id, zid)", tableName)
+			}
+
+			alterTableQuery := fmt.Sprintf(`ALTER TABLE ONLY %s ADD CONSTRAINT %s;`, tableName, pkeyString)
+			_, err = conn.Exec(ctx, alterTableQuery)
+			assert.NoError(t, err, "Failed to add primary key to table %s on %v with query %s", tableName, db.image, alterTableQuery)
+
 			rand.Shuffle(len(valueClauses), func(i, j int) { valueClauses[i], valueClauses[j] = valueClauses[j], valueClauses[i] })
 			insertDataQuery := fmt.Sprintf(`INSERT INTO "%s" %s %s`, tableName, insertDataQueryBase, strings.Join(valueClauses, ", "))
 			_, err = conn.Exec(ctx, insertDataQuery)
@@ -283,20 +293,26 @@ func TestVerifyData(t *testing.T) {
 		targets = append(targets, config)
 	}
 
+	logger := logrus.New()
+	logger.Level = logrus.ErrorLevel
 	// Test all the different verification strategies
-	results, err := pgverify.Verify(
-		ctx,
-		targets,
-		pgverify.WithTests(
-			pgverify.TestModeBookend,
-			pgverify.TestModeSparse,
-			pgverify.TestModeFull,
-			pgverify.TestModeRowCount,
-		),
-		pgverify.ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
-		pgverify.ExcludeColumns("ignored"),
-		pgverify.WithAliases(aliases),
-	)
-	assert.NoError(t, err)
-	results.WriteAsTable(os.Stdout)
+	for i = 0; i < 1; i++ {
+		results, err := pgverify.Verify(
+			ctx,
+			targets,
+			pgverify.WithTests(
+				pgverify.TestModeBookend,
+				pgverify.TestModeSparse,
+				pgverify.TestModeFull,
+				pgverify.TestModeRowCount,
+			),
+			pgverify.WithLogger(logger),
+			pgverify.ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
+			pgverify.ExcludeColumns("ignored", "rowid"),
+			pgverify.WithAliases(aliases),
+			pgverify.WithBookendLimit(5),
+		)
+		assert.NoError(t, err)
+		results.WriteAsTable(os.Stdout)
+	}
 }
