@@ -194,11 +194,11 @@ func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry
 
 			var tableColumns []column
 
-			var primaryKeyColumn column
+			var primaryKeyColumnNames []string
 
 			for _, col := range allTableColumns {
 				if col.IsPrimaryKey() {
-					primaryKeyColumn = col
+					primaryKeyColumnNames = append(primaryKeyColumnNames, col.name)
 				}
 
 				if c.validColumnTarget(col.name) {
@@ -206,15 +206,15 @@ func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry
 				}
 			}
 
-			if primaryKeyColumn.name == "" {
-				tableLogger.Error("No primary key found")
+			if len(primaryKeyColumnNames) == 0 {
+				tableLogger.Error("No primary keys found")
 
 				continue
 			}
 
 			tableLogger.WithFields(logrus.Fields{
-				"primary_key": primaryKeyColumn,
-				"columns":     tableColumns,
+				"primary_keys": primaryKeyColumnNames,
+				"columns":      tableColumns,
 			}).Info("Determined columns to hash")
 
 			for _, testMode := range c.TestModes {
@@ -224,11 +224,11 @@ func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry
 
 				switch testMode {
 				case TestModeFull:
-					query = buildFullHashQuery(c, schemaName, tableName, primaryKeyColumn, tableColumns)
+					query = buildFullHashQuery(c, schemaName, tableName, tableColumns)
 				case TestModeBookend:
-					query = buildBookendHashQuery(c, schemaName, tableName, primaryKeyColumn, tableColumns, c.BookendLimit)
+					query = buildBookendHashQuery(c, schemaName, tableName, tableColumns, c.BookendLimit)
 				case TestModeSparse:
-					query = buildSparseHashQuery(c, schemaName, tableName, primaryKeyColumn, tableColumns, c.SparseMod)
+					query = buildSparseHashQuery(c, schemaName, tableName, tableColumns, c.SparseMod)
 				case TestModeRowCount:
 					query = buildRowCountQuery(schemaName, tableName)
 				}
