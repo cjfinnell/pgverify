@@ -97,7 +97,7 @@ func buildGetColumsQuery(schemaName, tableName string) string {
 
 // Constructs a query for test mode full that generates a MD5 hash of each row,
 // aggregates those hashes, and outputs a single hash of those hashes.
-func buildFullHashQuery(config Config, schemaName, tableName string, primaryColumn column, columns []column) string {
+func buildFullHashQuery(config Config, schemaName, tableName string, primaryColumnNames string, columns []column) string {
 	var columnsWithCasting []string
 	for _, column := range columns {
 		columnsWithCasting = append(columnsWithCasting, column.CastToText(config.TimestampPrecision))
@@ -109,53 +109,72 @@ func buildFullHashQuery(config Config, schemaName, tableName string, primaryColu
 		SELECT md5(string_agg(hash, ''))
 		FROM (SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash FROM "%s"."%s" ORDER BY %s) AS eachrow
 		GROUP BY grouper
-		`, strings.Join(columnsWithCasting, ", "), schemaName, tableName, primaryColumn.name))
+		`, strings.Join(columnsWithCasting, ", "), schemaName, tableName, primaryColumnNames))
 }
 
 // Similar to the full test query, this test differs by first selecting a subset
 // of the rows by casting the primary key value to an integer, then bucketing
 // based off of that value modulo the configured SparseMod value.
-func buildSparseHashQuery(config Config, schemaName, tableName string, primaryColumn column, columns []column, sparseMod int) string {
+func buildSparseHashQuery(config Config, schemaName, tableName string, columns []column, sparseMod int) string {
 	var columnsWithCasting []string
-
-	var primaryKey column
+	var primaryKeyNamesWithCasting []string
+	var primaryKeyNames []string
 
 	for _, column := range columns {
-		columnsWithCasting = append(columnsWithCasting, column.CastToText(config.TimestampPrecision))
+		colNameWithCasting := column.CastToText(config.TimestampPrecision)
+		columnsWithCasting = append(columnsWithCasting, colNameWithCasting)
 
 		if column.IsPrimaryKey() {
-			primaryKey = column
+			primaryKeyNames = append(primaryKeyNames, column.name)
+			primaryKeyNamesWithCasting = append(primaryKeyNamesWithCasting, colNameWithCasting)
 		}
 	}
 
 	sort.Strings(columnsWithCasting)
+	sort.Strings(primaryKeyNamesWithCasting)
+	sort.Strings(primaryKeyNames)
+
+	primaryKeyNamesWithCastingString := strings.Join(primaryKeyNamesWithCasting, ", ")
+
+	var whenClauses []string
+	for _, pkeyName := range primaryKeyNames {
+		whenClauses = append(
+			whenClauses, fmt.Sprintf(
+				` %s in (
+					SELECT %s
+					FROM "%s"."%s"
+					WHERE ('x' || substr(md5(CONCAT(%s)),1,16))::bit(64)::bigint %% %d = 0
+				)`,
+				pkeyName,
+				pkeyName,
+				schemaName,
+				tableName,
+				primaryKeyNamesWithCastingString,
+				sparseMod,
+			),
+		)
+	}
+
+	primaryKeyNamesString := strings.Join(primaryKeyNames, ", ")
+	whenClausesString := strings.Join(whenClauses, " AND ")
 
 	return formatQuery(fmt.Sprintf(`
 		SELECT md5(string_agg(hash, ''))
 		FROM (
 			SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash
 			FROM "%s"."%s"
-			WHERE %s in (
-				SELECT %s
-				FROM "%s"."%s"
-				WHERE ('x' || substr(md5(%s),1,16))::bit(64)::bigint %% %d = 0
-			)
+			WHERE %s
 			ORDER BY %s
 		) AS eachrow
 		GROUP BY grouper
 		`,
 		strings.Join(columnsWithCasting, ", "),
-		schemaName, tableName,
-		primaryKey.name,
-		primaryKey.name,
-		schemaName, tableName,
-		primaryKey.CastToText(config.TimestampPrecision),
-		sparseMod,
-		primaryColumn.name))
+		schemaName, tableName, whenClausesString,
+		primaryKeyNamesString))
 }
 
 // Like the full test query, but only looks at the first and last N rows for generating hashes.
-func buildBookendHashQuery(config Config, schemaName, tableName string, primaryColumn column, columns []column, limit int) string {
+func buildBookendHashQuery(config Config, schemaName, tableName string, primaryColumnNames string, columns []column, limit int) string {
 	var columnsWithCasting []string
 	for _, column := range columns {
 		columnsWithCasting = append(columnsWithCasting, column.CastToText(config.TimestampPrecision))
@@ -186,7 +205,7 @@ func buildBookendHashQuery(config Config, schemaName, tableName string, primaryC
 			) AS eachrow
 			GROUP BY grouper
 		) as endhash
-		`, allColumnsWithCasting, schemaName, tableName, primaryColumn.name, limit, allColumnsWithCasting, schemaName, tableName, primaryColumn.name, limit))
+		`, allColumnsWithCasting, schemaName, tableName, primaryColumnNames, limit, allColumnsWithCasting, schemaName, tableName, primaryColumnNames, limit))
 }
 
 // A minimal test that simply counts the number of rows.

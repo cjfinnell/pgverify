@@ -2,6 +2,7 @@ package pgverify
 
 import (
 	"context"
+	"strings"
 
 	"github.com/jackc/pgx/pgtype"
 	"github.com/jackc/pgx/v4"
@@ -194,11 +195,11 @@ func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry
 
 			var tableColumns []column
 
-			var primaryKeyColumn column
+			var primaryKeyColumnNames []string
 
 			for _, col := range allTableColumns {
 				if col.IsPrimaryKey() {
-					primaryKeyColumn = col
+					primaryKeyColumnNames = append(primaryKeyColumnNames, col.name)
 				}
 
 				if c.validColumnTarget(col.name) {
@@ -206,16 +207,18 @@ func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry
 				}
 			}
 
-			if primaryKeyColumn.name == "" {
-				tableLogger.Error("No primary key found")
+			if len(primaryKeyColumnNames) == 0 {
+				tableLogger.Error("No primary keys found")
 
 				continue
 			}
 
 			tableLogger.WithFields(logrus.Fields{
-				"primary_key": primaryKeyColumn,
-				"columns":     tableColumns,
+				"primary_keys": primaryKeyColumnNames, // XXX
+				"columns":      tableColumns,
 			}).Info("Determined columns to hash")
+
+			primaryKeyColumnNameString := strings.Join(primaryKeyColumnNames, ", ")
 
 			for _, testMode := range c.TestModes {
 				testLogger := tableLogger.WithField("test", testMode)
@@ -224,11 +227,11 @@ func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry
 
 				switch testMode {
 				case TestModeFull:
-					query = buildFullHashQuery(c, schemaName, tableName, primaryKeyColumn, tableColumns)
+					query = buildFullHashQuery(c, schemaName, tableName, primaryKeyColumnNameString, tableColumns)
 				case TestModeBookend:
-					query = buildBookendHashQuery(c, schemaName, tableName, primaryKeyColumn, tableColumns, c.BookendLimit)
+					query = buildBookendHashQuery(c, schemaName, tableName, primaryKeyColumnNameString, tableColumns, c.BookendLimit)
 				case TestModeSparse:
-					query = buildSparseHashQuery(c, schemaName, tableName, primaryKeyColumn, tableColumns, c.SparseMod)
+					query = buildSparseHashQuery(c, schemaName, tableName, tableColumns, c.SparseMod)
 				case TestModeRowCount:
 					query = buildRowCountQuery(schemaName, tableName)
 				}
