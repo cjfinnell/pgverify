@@ -55,8 +55,8 @@ func TestBuildFullHashQuery(t *testing.T) {
 			expectedQuery: formatQuery(`
             SELECT md5(string_agg(hash, ''))
             FROM
-                (SELECT '' AS grouper, MD5(CONCAT((extract(epoch from date_trunc('milliseconds', when))::DECIMAL * 1000000)::BIGINT::TEXT, content::TEXT, id::TEXT)) AS hash
-                FROM "testSchema"."testTable" ORDER BY CONCAT(id::TEXT)) AS eachrow GROUP BY grouper`),
+                (SELECT '' AS grouper, MD5(CONCAT((extract(epoch from date_trunc('milliseconds', when))::DECIMAL * 1000000)::BIGINT::TEXT, content::TEXT, id::TEXT)) AS hash, CONCAT(id::TEXT) as primary_key
+                FROM "testSchema"."testTable") AS eachrow GROUP BY grouper, primary_key ORDER BY primary_key`),
 		},
 		{
 			name:       "multi-column primary key",
@@ -72,8 +72,8 @@ func TestBuildFullHashQuery(t *testing.T) {
 			expectedQuery: formatQuery(`
             SELECT md5(string_agg(hash, ''))
             FROM
-                (SELECT '' AS grouper, MD5(CONCAT((extract(epoch from date_trunc('milliseconds', when))::DECIMAL * 1000000)::BIGINT::TEXT, content::TEXT, id::TEXT)) AS hash
-                FROM "testSchema"."testTable" ORDER BY CONCAT(content::TEXT, id::TEXT)) AS eachrow GROUP BY grouper`),
+                (SELECT '' AS grouper, MD5(CONCAT((extract(epoch from date_trunc('milliseconds', when))::DECIMAL * 1000000)::BIGINT::TEXT, content::TEXT, id::TEXT)) AS hash, CONCAT(content::TEXT, id::TEXT) as primary_key
+                FROM "testSchema"."testTable") AS eachrow GROUP BY grouper, primary_key ORDER BY primary_key`),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -105,14 +105,14 @@ func TestBuildSparseHashQuery(t *testing.T) {
 			expectedQuery: formatQuery(`
             SELECT md5(string_agg(hash, ''))
             FROM
-                ( SELECT '' AS grouper, MD5(CONCAT((extract(epoch from date_trunc('milliseconds', when))::DECIMAL * 1000000)::BIGINT::TEXT, content::TEXT, id::TEXT)) AS hash
+                ( SELECT '' AS grouper, MD5(CONCAT((extract(epoch from date_trunc('milliseconds', when))::DECIMAL * 1000000)::BIGINT::TEXT, content::TEXT, id::TEXT)) AS hash, CONCAT(id::TEXT) as primary_key
                 FROM "testSchema"."testTable" 
 				WHERE id in ( 
 					SELECT id FROM "testSchema"."testTable" 
 					WHERE ('x' || substr(md5(CONCAT(id::TEXT)),1,16))::bit(64)::bigint % 10 = 0 ) 
 					ORDER BY CONCAT(id::TEXT)
 				) 
-				AS eachrow GROUP BY grouper`),
+				AS eachrow GROUP BY grouper, primary_key ORDER BY primary_key`),
 		},
 		{
 			name:       "multi-column primary key",
@@ -127,7 +127,7 @@ func TestBuildSparseHashQuery(t *testing.T) {
 			expectedQuery: formatQuery(`
             SELECT md5(string_agg(hash, ''))
             FROM
-                ( SELECT '' AS grouper, MD5(CONCAT((extract(epoch from date_trunc('milliseconds', when))::DECIMAL * 1000000)::BIGINT::TEXT, content::TEXT, id::TEXT)) AS hash
+                ( SELECT '' AS grouper, MD5(CONCAT((extract(epoch from date_trunc('milliseconds', when))::DECIMAL * 1000000)::BIGINT::TEXT, content::TEXT, id::TEXT)) AS hash, CONCAT(content::TEXT, id::TEXT) as primary_key
                 FROM "testSchema"."testTable" 
 				WHERE content in ( 
 					SELECT content FROM "testSchema"."testTable" 
@@ -136,7 +136,7 @@ func TestBuildSparseHashQuery(t *testing.T) {
 					SELECT id FROM "testSchema"."testTable" 
 					WHERE ('x' || substr(md5(CONCAT(content::TEXT, id::TEXT)),1,16))::bit(64)::bigint % 10 = 0
 				) ORDER BY CONCAT(content::TEXT, id::TEXT) )
-				AS eachrow GROUP BY grouper`),
+				AS eachrow GROUP BY grouper, primary_key ORDER BY primary_key`),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
