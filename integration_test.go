@@ -234,7 +234,7 @@ func TestVerifyData(t *testing.T) {
 	sort.Strings(keysWithTypes)
 	sort.Strings(sortedTypes)
 
-	tableNames := []string{"testtable1", "testtable2", "testtable3"}
+	tableNames := []string{"testtable1", "testTABLE2", "testtable3"}
 	createTableQueryBase := fmt.Sprintf("( id INT DEFAULT 0 NOT NULL, zid INT DEFAULT 0 NOT NULL, ignored TIMESTAMP WITH TIME ZONE DEFAULT NOW(), %s);", strings.Join(keysWithTypes, ", "))
 
 	rowCount := calculateRowCount(columnTypes)
@@ -277,11 +277,11 @@ func TestVerifyData(t *testing.T) {
 			assert.NoError(t, err, "Failed to create table %s on %v with query: %s", tableName, db.image, createTableQuery)
 
 			pkeyString := fmt.Sprintf("single_col_pkey_%s PRIMARY KEY (id)", tableName)
-			if tableName == "testtable2" {
+			if tableName == tableNames[1] {
 				pkeyString = fmt.Sprintf("multi_col_pkey_%s PRIMARY KEY (id, zid)", tableName)
 			}
 
-			alterTableQuery := fmt.Sprintf(`ALTER TABLE ONLY %s ADD CONSTRAINT %s;`, tableName, pkeyString)
+			alterTableQuery := fmt.Sprintf(`ALTER TABLE ONLY "%s" ADD CONSTRAINT %s;`, tableName, pkeyString)
 			_, err = conn.Exec(ctx, alterTableQuery)
 			assert.NoError(t, err, "Failed to add primary key to table %s on %v with query %s", tableName, db.image, alterTableQuery)
 
