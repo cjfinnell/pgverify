@@ -31,7 +31,7 @@ func (c column) CastToText(precision string) string {
 	case "timestamp with time zone":
 		// Truncating the epoch means that timestamps will be compared "to the second"; timestamps with ms/ns differences will be considered equal.
 		return fmt.Sprintf("(extract(epoch from date_trunc('%s', %s))::DECIMAL * 1000000)::BIGINT::TEXT", precision, c.name)
-	case "jsonb":
+	case "jsonb", "json":
 		return fmt.Sprintf("length(%s::TEXT)::TEXT", c.name)
 	default:
 		return c.name + "::TEXT"
