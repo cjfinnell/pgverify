@@ -1,0 +1,25 @@
+linters:
+  enable-all: true
+  disable:
+    - typecheck
+    - golint # deprecated
+    - interfacer # deprecated
+    - maligned # deprecated
+    - scopelint # deprecated
+    - exhaustivestruct
+    - exhaustruct
+    - gochecknoglobals
+    - gochecknoinits
+    - paralleltest
+    - cyclop # todo
+    - errorlint # todo
+    - funlen # todo
+    - gci # todo
+    - gocognit # todo
+    - godox # todo
+    - goerr113 # todo
+    - lll # todo
+    - prealloc # todo
+    - revive # todo
+    - varnamelen # todo
+    - wrapcheck # todo
