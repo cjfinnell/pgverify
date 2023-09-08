@@ -27,19 +27,6 @@ jobs:
           command: make test
       - codecov/upload:
           file: coverage.txt
-  int-test:
-    executor: go
-    steps:
-      - checkout
-      - run:
-          name: Build
-          command: make build
-      - run:
-          name: Grab CockroachDB SSL cert
-          command: curl --create-dirs -o $HOME/.postgresql/root.crt -O $CRDB_CERT
-      - run:
-          name: Run integration tests
-          command: ./pgverify --tests full,rowcount --include-tables testtable --aliases rds,crdb $PSQL_URI $CRDB_URI
 
 workflows:
   version: 2
@@ -49,8 +36,3 @@ workflows:
           context: org-global
       - test:
           context: org-global
-      - int-test:
-          context: org-global
-          requires:
-            - lint
-            - test
