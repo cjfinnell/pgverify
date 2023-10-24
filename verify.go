@@ -3,8 +3,8 @@ package pgverify
 import (
 	"context"
 
-	"github.com/jackc/pgx/pgtype"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"go.uber.org/multierr"
@@ -48,9 +48,7 @@ func (c Config) Verify(ctx context.Context, targets []*pgx.ConnConfig) (*Results
 			targetNames[i] = targets[i].Host
 		}
 
-		target.Logger = &pgxLogger{c.Logger.WithFields(pgxLoggerFields)}
-
-		target.LogLevel = pgx.LogLevelError
+		target.Tracer = NewTraceLogger(c.Logger.WithFields(pgxLoggerFields))
 
 		conn, err := pgx.ConnectConfig(ctx, target)
 		if err != nil {
