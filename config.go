@@ -61,7 +61,7 @@ type Config struct {
 
 // Option interface used for setting optional config properties.
 type Option interface {
-	apply(*Config)
+	apply(c *Config)
 }
 
 type optionFunc func(*Config)
