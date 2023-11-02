@@ -89,7 +89,7 @@ func (c Config) Verify(ctx context.Context, targets []*pgx.ConnConfig) (*Results
 func (c Config) runTestsOnTarget(ctx context.Context, targetName string, conn *pgx.Conn, finalResults *Results, done chan struct{}) {
 	logger := c.Logger.WithField("target", targetName)
 
-	schemaTableHashes, err := c.fetchTargetTableNames(ctx, logger, conn)
+	schemaTableHashes, err := c.fetchTargetTableNames(ctx, conn)
 	if err != nil {
 		logger.WithError(err).Error("failed to fetch target tables")
 		close(done)
@@ -110,7 +110,7 @@ func (c Config) runTestsOnTarget(ctx context.Context, targetName string, conn *p
 	close(done)
 }
 
-func (c Config) fetchTargetTableNames(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn) (SingleResult, error) {
+func (c Config) fetchTargetTableNames(ctx context.Context, conn *pgx.Conn) (SingleResult, error) {
 	schemaTableHashes := make(SingleResult)
 
 	rows, err := conn.Query(ctx, buildGetTablesQuery(c.IncludeSchemas, c.ExcludeSchemas, c.IncludeTables, c.ExcludeTables))
