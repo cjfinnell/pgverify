@@ -68,8 +68,8 @@ func createContainer(t *testing.T, ctx context.Context, image string, port int, 
 			image: image,
 			ports: []*portMapping{
 				{
-					HostPort:      fmt.Sprintf("%d", hostPort),
-					ContainerPort: fmt.Sprintf("%d", port),
+					HostPort:      strconv.Itoa(hostPort),
+					ContainerPort: strconv.Itoa(port),
 				},
 			},
 			env: env,
