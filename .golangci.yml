@@ -6,6 +6,7 @@ linters:
     - interfacer # deprecated
     - maligned # deprecated
     - scopelint # deprecated
+    - depguard
     - exhaustivestruct
     - exhaustruct
     - gochecknoglobals
