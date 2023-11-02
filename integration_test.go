@@ -261,9 +261,9 @@ func TestVerifyData(t *testing.T) {
 		aliases = append(aliases, db.image)
 		// Create db and connect
 		_, port, err := createContainer(t, ctx, db.image, db.port, db.env, db.cmd)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		config, err := pgx.ParseConfig(fmt.Sprintf("postgresql://%s@127.0.0.1:%d%s", db.userPassword, port, db.db))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, waitForDBReady(t, ctx, config))
 		conn, err := pgx.ConnectConfig(ctx, config)
 		require.NoError(t, err)
@@ -274,7 +274,7 @@ func TestVerifyData(t *testing.T) {
 		for _, tableName := range tableNames {
 			createTableQuery := fmt.Sprintf(`CREATE TABLE "%s" %s`, tableName, createTableQueryBase)
 			_, err = conn.Exec(ctx, createTableQuery)
-			assert.NoError(t, err, "Failed to create table %s on %v with query: %s", tableName, db.image, createTableQuery)
+			require.NoError(t, err, "Failed to create table %s on %v with query: %s", tableName, db.image, createTableQuery)
 
 			pkeyString := fmt.Sprintf("single_col_pkey_%s PRIMARY KEY (id)", tableName)
 			if tableName == tableNames[1] {
@@ -283,12 +283,12 @@ func TestVerifyData(t *testing.T) {
 
 			alterTableQuery := fmt.Sprintf(`ALTER TABLE ONLY "%s" ADD CONSTRAINT %s;`, tableName, pkeyString)
 			_, err = conn.Exec(ctx, alterTableQuery)
-			assert.NoError(t, err, "Failed to add primary key to table %s on %v with query %s", tableName, db.image, alterTableQuery)
+			require.NoError(t, err, "Failed to add primary key to table %s on %v with query %s", tableName, db.image, alterTableQuery)
 
 			rand.Shuffle(len(valueClauses), func(i, j int) { valueClauses[i], valueClauses[j] = valueClauses[j], valueClauses[i] })
 			insertDataQuery := fmt.Sprintf(`INSERT INTO "%s" %s %s`, tableName, insertDataQueryBase, strings.Join(valueClauses, ", "))
 			_, err = conn.Exec(ctx, insertDataQuery)
-			assert.NoError(t, err, "Failed to insert data to table on %v with query %s", tableName, db.image, insertDataQuery)
+			require.NoError(t, err, "Failed to insert data to table on %v with query %s", tableName, db.image, insertDataQuery)
 		}
 
 		targets = append(targets, config)
@@ -313,7 +313,7 @@ func TestVerifyData(t *testing.T) {
 			pgverify.WithAliases(aliases),
 			pgverify.WithBookendLimit(5),
 		)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		results.WriteAsTable(os.Stdout)
 	}
 }
