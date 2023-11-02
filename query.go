@@ -116,11 +116,18 @@ func buildFullHashQuery(config Config, schemaName, tableName string, columns []c
 
 	primaryColumnString := strings.Join(primaryKeyNamesWithCasting, ", ")
 
+	primaryColumnConcatString := fmt.Sprintf("CONCAT(%s)", primaryColumnString)
+
+	hashPKeys := true
+	if hashPKeys {
+		primaryColumnConcatString = fmt.Sprintf("MD5(%s)", primaryColumnConcatString)
+	}
+
 	return formatQuery(fmt.Sprintf(`
 		SELECT md5(string_agg(hash, ''))
-		FROM (SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash, CONCAT(%s) as primary_key FROM "%s"."%s") AS eachrow
+		FROM (SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash, %s as primary_key FROM "%s"."%s") AS eachrow
 		GROUP BY grouper, primary_key ORDER BY primary_key
-		`, strings.Join(columnsWithCasting, ", "), primaryColumnString, schemaName, tableName))
+		`, strings.Join(columnsWithCasting, ", "), primaryColumnConcatString, schemaName, tableName))
 }
 
 // Similar to the full test query, this test differs by first selecting a subset
@@ -172,10 +179,17 @@ func buildSparseHashQuery(config Config, schemaName, tableName string, columns [
 
 	primaryColumnString := strings.Join(primaryKeyNamesWithCasting, ", ")
 
+	primaryColumnConcatString := fmt.Sprintf("CONCAT(%s)", primaryColumnString)
+
+	hashPKeys := true
+	if hashPKeys {
+		primaryColumnConcatString = fmt.Sprintf("MD5(%s)", primaryColumnConcatString)
+	}
+
 	return formatQuery(fmt.Sprintf(`
 		SELECT md5(string_agg(hash, ''))
 		FROM (
-			SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash, CONCAT(%s) as primary_key
+			SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash, %s as primary_key
 			FROM "%s"."%s"
 			WHERE %s
 			ORDER BY CONCAT(%s)
@@ -183,7 +197,7 @@ func buildSparseHashQuery(config Config, schemaName, tableName string, columns [
 		GROUP BY grouper, primary_key
 		ORDER BY primary_key
 		`,
-		strings.Join(columnsWithCasting, ", "), primaryColumnString,
+		strings.Join(columnsWithCasting, ", "), primaryColumnConcatString,
 		schemaName, tableName, whenClausesString,
 		primaryKeyNamesWithCastingString))
 }
@@ -209,6 +223,13 @@ func buildBookendHashQuery(config Config, schemaName, tableName string, columns 
 	allColumnsWithCasting := strings.Join(columnsWithCasting, ", ")
 	allPrimaryColumnsWithCasting := strings.Join(primaryKeyNamesWithCasting, ", ")
 
+	allPrimaryColumnsConcatString := fmt.Sprintf("CONCAT(%s)", allPrimaryColumnsWithCasting)
+
+	hashPKeys := true
+	if hashPKeys {
+		allPrimaryColumnsConcatString = fmt.Sprintf("MD5(%s)", allPrimaryColumnsConcatString)
+	}
+
 	return formatQuery(fmt.Sprintf(`
 			SELECT md5(CONCAT(starthash::TEXT, endhash::TEXT))
 			FROM (
@@ -216,7 +237,7 @@ func buildBookendHashQuery(config Config, schemaName, tableName string, columns 
 				FROM (
 					SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash
 					FROM "%s"."%s"
-					ORDER BY CONCAT(%s) ASC
+					ORDER BY %s ASC
 					LIMIT %d
 				) AS eachrow
 				GROUP BY grouper
@@ -225,12 +246,12 @@ func buildBookendHashQuery(config Config, schemaName, tableName string, columns 
 				FROM (
 					SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash
 					FROM "%s"."%s"
-					ORDER BY CONCAT(%s) DESC
+					ORDER BY %s DESC
 					LIMIT %d
 				) AS eachrow
 				GROUP BY grouper
 			) as endhash
-			`, allColumnsWithCasting, schemaName, tableName, allPrimaryColumnsWithCasting, limit, allColumnsWithCasting, schemaName, tableName, allPrimaryColumnsWithCasting, limit))
+			`, allColumnsWithCasting, schemaName, tableName, allPrimaryColumnsConcatString, limit, allColumnsWithCasting, schemaName, tableName, allPrimaryColumnsConcatString, limit))
 }
 
 // A minimal test that simply counts the number of rows.
