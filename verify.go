@@ -97,13 +97,7 @@ func (c Config) runTestsOnTarget(ctx context.Context, targetName string, conn *p
 		return
 	}
 
-	schemaTableHashes, err = c.runTestQueriesOnTarget(ctx, logger, conn, schemaTableHashes)
-	if err != nil {
-		logger.WithError(err).Error("failed to run verification tests")
-		close(done)
-
-		return
-	}
+	schemaTableHashes = c.runTestQueriesOnTarget(ctx, logger, conn, schemaTableHashes)
 
 	finalResults.AddResult(targetName, schemaTableHashes)
 	logger.Info("Table hashes computed")
@@ -158,7 +152,7 @@ func (c Config) validColumnTarget(columnName string) bool {
 	return false
 }
 
-func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, schemaTableHashes SingleResult) (SingleResult, error) {
+func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, schemaTableHashes SingleResult) SingleResult {
 	for schemaName, tables := range schemaTableHashes {
 		for tableName := range tables {
 			tableLogger := logger.WithField("table", tableName).WithField("schema", schemaName)
@@ -248,7 +242,7 @@ func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry
 		}
 	}
 
-	return schemaTableHashes, nil
+	return schemaTableHashes
 }
 
 func runTestOnTable(ctx context.Context, conn *pgx.Conn, query string) (string, error) {
