@@ -118,8 +118,7 @@ func buildFullHashQuery(config Config, schemaName, tableName string, columns []c
 
 	primaryColumnConcatString := fmt.Sprintf("CONCAT(%s)", primaryColumnString)
 
-	hashPKeys := true
-	if hashPKeys {
+	if config.HashPrimaryKeys {
 		primaryColumnConcatString = fmt.Sprintf("MD5(%s)", primaryColumnConcatString)
 	}
 
@@ -181,8 +180,7 @@ func buildSparseHashQuery(config Config, schemaName, tableName string, columns [
 
 	primaryColumnConcatString := fmt.Sprintf("CONCAT(%s)", primaryColumnString)
 
-	hashPKeys := true
-	if hashPKeys {
+	if config.HashPrimaryKeys {
 		primaryColumnConcatString = fmt.Sprintf("MD5(%s)", primaryColumnConcatString)
 	}
 
@@ -225,8 +223,7 @@ func buildBookendHashQuery(config Config, schemaName, tableName string, columns 
 
 	allPrimaryColumnsConcatString := fmt.Sprintf("CONCAT(%s)", allPrimaryColumnsWithCasting)
 
-	hashPKeys := true
-	if hashPKeys {
+	if config.HashPrimaryKeys {
 		allPrimaryColumnsConcatString = fmt.Sprintf("MD5(%s)", allPrimaryColumnsConcatString)
 	}
 
