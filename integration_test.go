@@ -324,6 +324,7 @@ func TestVerifyData(t *testing.T) {
 			pgverify.ExcludeColumns("ignored", "rowid"),
 			pgverify.WithAliases(aliases),
 			pgverify.WithBookendLimit(5),
+			pgverify.WithHashPrimaryKeys(),
 		)
 		require.NoError(t, err)
 		results.WriteAsTable(os.Stdout)
