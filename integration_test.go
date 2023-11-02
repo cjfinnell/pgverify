@@ -232,7 +232,7 @@ func TestVerifyData(t *testing.T) {
 	sort.Strings(keysWithTypes)
 	sort.Strings(sortedTypes)
 
-	tableNames := []string{"testtable1", "testTABLE2", "testtable3"}
+	tableNames := []string{"testtable1", "testTABLE_multi_col_2", "testtable3"}
 	createTableQueryBase := fmt.Sprintf("( id INT DEFAULT 0 NOT NULL, zid INT DEFAULT 0 NOT NULL, ignored TIMESTAMP WITH TIME ZONE DEFAULT NOW(), %s);", strings.Join(keysWithTypes, ", "))
 
 	rowCount := calculateRowCount(columnTypes)
@@ -274,10 +274,16 @@ func TestVerifyData(t *testing.T) {
 			_, err = conn.Exec(ctx, createTableQuery)
 			require.NoError(t, err, "Failed to create table %s on %v with query: %s", tableName, db.image, createTableQuery)
 
-			pkeyString := fmt.Sprintf("single_col_pkey_%s PRIMARY KEY (id)", tableName)
-			if tableName == tableNames[1] {
+			var pkeyString string
+
+			switch {
+			case strings.Contains(tableName, "multi_col"):
 				pkeyString = fmt.Sprintf("multi_col_pkey_%s PRIMARY KEY (id, zid)", tableName)
+			default:
+				pkeyString = fmt.Sprintf("single_col_pkey_%s PRIMARY KEY (id)", tableName)
 			}
+
+			require.NotEmpty(t, pkeyString)
 
 			alterTableQuery := fmt.Sprintf(`ALTER TABLE ONLY "%s" ADD CONSTRAINT %s;`, tableName, pkeyString)
 			_, err = conn.Exec(ctx, alterTableQuery)
