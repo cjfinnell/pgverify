@@ -107,8 +107,6 @@ func TestVerifyData(t *testing.T) {
 	// Arrange
 	ctx := context.Background()
 
-	rand.Seed(time.Now().UnixNano())
-
 	dbs := []struct {
 		image        string
 		cmd          []string
