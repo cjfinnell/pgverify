@@ -47,6 +47,11 @@ type Config struct {
 	// SparseMod is used in the sparse test mode to deterministically select a
 	// subset of rows, approximately 1/mod of the total.
 	SparseMod int
+	// HashPrimaryKeys is a flag that determines whether or not to hash the values
+	// of primary keys before using them for ordering. This is useful when the
+	// primary keys contain TEXT that is sorted differently between engines.
+	// May impact performance.
+	HashPrimaryKeys bool
 
 	// Aliases is a list of aliases to use for the target databases in reporting
 	// output. Is ignored if the number of aliases is not equal to the number of
@@ -191,5 +196,15 @@ func WithAliases(aliases []string) optionFunc {
 func WithTimestampPrecision(precision string) optionFunc {
 	return func(c *Config) {
 		c.TimestampPrecision = precision
+	}
+}
+
+// WithHashPrimaryKeys configures the verifier to hash primary keys before
+// ordering results. This is useful when the primary keys contain TEXT that is
+// sorted differently between engines.
+// May impact performance.
+func WithHashPrimaryKeys() optionFunc {
+	return func(c *Config) {
+		c.HashPrimaryKeys = true
 	}
 }

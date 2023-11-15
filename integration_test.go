@@ -99,6 +99,7 @@ func calculateRowCount(columnTypes map[string][]string) int {
 	return rowCount
 }
 
+//nolint:maintidx
 func TestVerifyData(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
@@ -232,15 +233,20 @@ func TestVerifyData(t *testing.T) {
 	sort.Strings(keysWithTypes)
 	sort.Strings(sortedTypes)
 
-	tableNames := []string{"testtable1", "testTABLE2", "testtable3"}
-	createTableQueryBase := fmt.Sprintf("( id INT DEFAULT 0 NOT NULL, zid INT DEFAULT 0 NOT NULL, ignored TIMESTAMP WITH TIME ZONE DEFAULT NOW(), %s);", strings.Join(keysWithTypes, ", "))
+	tableNames := []string{"testtable1", "testTABLE_multi_col_2", "testtable3", "test_stringkey_table4"}
+	createTableQueryBase := fmt.Sprintf("( id INT DEFAULT 0 NOT NULL, zid INT DEFAULT 0 NOT NULL, sid TEXT NOT NULL, ignored TIMESTAMP WITH TIME ZONE DEFAULT NOW(), %s);", strings.Join(keysWithTypes, ", "))
 
 	rowCount := calculateRowCount(columnTypes)
-	insertDataQueryBase := `(id, zid,` + strings.Join(keys, ", ") + `) VALUES `
+	insertDataQueryBase := `(id, zid, sid,` + strings.Join(keys, ", ") + `) VALUES `
 	valueClauses := make([]string, 0, rowCount)
 
+	// Modulo-cycle through prefixes to re-create ORDER BY issue
+	textPKeyPrefixes := []string{"A", "AA", "a", "aa", "A-A", "a-a"}
+
 	for rowID := 0; rowID < rowCount; rowID++ {
-		valueClause := `(` + strconv.Itoa(rowID) + `, 0`
+		textPKeyPrefix := textPKeyPrefixes[rowID%len(textPKeyPrefixes)]
+		valueClause := fmt.Sprintf("( %d, 0, '%s-%d'", rowID, textPKeyPrefix, rowID)
+
 		for _, columnType := range sortedTypes {
 			valueClause += `, ` + columnTypes[columnType][rowID%len(columnTypes[columnType])]
 		}
@@ -274,10 +280,18 @@ func TestVerifyData(t *testing.T) {
 			_, err = conn.Exec(ctx, createTableQuery)
 			require.NoError(t, err, "Failed to create table %s on %v with query: %s", tableName, db.image, createTableQuery)
 
-			pkeyString := fmt.Sprintf("single_col_pkey_%s PRIMARY KEY (id)", tableName)
-			if tableName == tableNames[1] {
+			var pkeyString string
+
+			switch {
+			case strings.Contains(tableName, "multi_col"):
 				pkeyString = fmt.Sprintf("multi_col_pkey_%s PRIMARY KEY (id, zid)", tableName)
+			case strings.Contains(tableName, "stringkey"):
+				pkeyString = fmt.Sprintf("text_col_pkey_%s PRIMARY KEY (sid)", tableName)
+			default:
+				pkeyString = fmt.Sprintf("single_col_pkey_%s PRIMARY KEY (id)", tableName)
 			}
+
+			require.NotEmpty(t, pkeyString)
 
 			alterTableQuery := fmt.Sprintf(`ALTER TABLE ONLY "%s" ADD CONSTRAINT %s;`, tableName, pkeyString)
 			_, err = conn.Exec(ctx, alterTableQuery)
@@ -310,6 +324,7 @@ func TestVerifyData(t *testing.T) {
 			pgverify.ExcludeColumns("ignored", "rowid"),
 			pgverify.WithAliases(aliases),
 			pgverify.WithBookendLimit(5),
+			pgverify.WithHashPrimaryKeys(),
 		)
 		require.NoError(t, err)
 		results.WriteAsTable(os.Stdout)

@@ -16,6 +16,7 @@ var (
 	aliasesFlag, excludeSchemasFlag, excludeTablesFlag, includeSchemasFlag, includeTablesFlag, includeColumnsFlag, excludeColumnsFlag, testModesFlag *[]string
 	logLevelFlag, timestampPrecisionFlag                                                                                                             *string
 	bookendLimitFlag, sparseModFlag                                                                                                                  *int
+	hashPrimaryKeysFlag                                                                                                                              *bool
 )
 
 func init() {
@@ -39,6 +40,8 @@ func init() {
 
 	bookendLimitFlag = rootCmd.Flags().Int("bookend-limit", pgverify.TestModeBookendDefaultLimit, "only check the first and last N rows (with --tests=bookend)")
 	sparseModFlag = rootCmd.Flags().Int("sparse-mod", pgverify.TestModeSparseDefaultMod, "only check every Nth row (with --tests=sparse)")
+
+	hashPrimaryKeysFlag = rootCmd.Flags().Bool("hash-primary-keys", false, "hash primary key values before comparing them (useful for TEXT primary keys)")
 }
 
 var rootCmd = &cobra.Command{
@@ -66,6 +69,10 @@ var rootCmd = &cobra.Command{
 			pgverify.WithSparseMod(*sparseModFlag),
 			pgverify.WithBookendLimit(*bookendLimitFlag),
 			pgverify.WithTimestampPrecision(*timestampPrecisionFlag),
+		}
+
+		if *hashPrimaryKeysFlag {
+			opts = append(opts, pgverify.WithHashPrimaryKeys())
 		}
 
 		logger := log.New()
