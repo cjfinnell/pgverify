@@ -151,17 +151,12 @@ func (c Config) validColumnTarget(columnName string) bool {
 }
 
 func (c Config) runTestQueriesOnDatabase(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, targetName string, databaseHashes DatabaseResult, finalResults *Results) {
-	databaseResults := make(DatabaseResult)
-
 	for schemaName, schemaHashes := range databaseHashes {
-		schemaResult := c.runTestQueriesOnSchema(ctx, logger, conn, schemaName, schemaHashes)
-		databaseResults[schemaName] = schemaResult
+		c.runTestQueriesOnSchema(ctx, logger, conn, schemaName, targetName, schemaHashes, finalResults)
 	}
-
-	finalResults.AddResult(targetName, databaseResults)
 }
 
-func (c Config) runTestQueriesOnSchema(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, schemaName string, schemaHashes SchemaResult) SchemaResult {
+func (c Config) runTestQueriesOnSchema(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, targetName, schemaName string, schemaHashes SchemaResult, finalResults *Results) {
 	schemaResults := make(SchemaResult)
 
 	for tableName := range schemaHashes {
@@ -171,7 +166,9 @@ func (c Config) runTestQueriesOnSchema(ctx context.Context, logger *logrus.Entry
 		}
 	}
 
-	return schemaResults
+	databaseResults := make(DatabaseResult)
+	databaseResults[schemaName] = schemaResults
+	finalResults.AddResult(targetName, databaseResults)
 }
 
 func (c Config) runTestQueriesOnTable(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, schemaName, tableName string) TableResult {
