@@ -102,7 +102,7 @@ func (c Config) runTestsOnTarget(ctx context.Context, targetName string, conn *p
 		for tableName := range schemaHashes {
 			wg.Add(1)
 
-			c.runTestQueriesOnTable(ctx, logger, conn, targetName, schemaName, tableName, finalResults, wg)
+			go c.runTestQueriesOnTable(ctx, logger, conn, targetName, schemaName, tableName, finalResults, wg)
 		}
 	}
 
@@ -235,7 +235,8 @@ func (c Config) runTestQueriesOnTable(ctx context.Context, logger *logrus.Entry,
 		testLogger.Debugf("Generated query: %s", query)
 
 		wg.Add(1)
-		runTestOnTable(ctx, testLogger, conn, targetName, schemaName, tableName, testMode, query, finalResults, wg)
+
+		go runTestOnTable(ctx, testLogger, conn, targetName, schemaName, tableName, testMode, query, finalResults, wg)
 	}
 }
 
