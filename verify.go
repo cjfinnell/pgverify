@@ -2,6 +2,7 @@ package pgverify
 
 import (
 	"context"
+	"sync"
 
 	"github.com/jackc/pgx/pgtype"
 	"github.com/jackc/pgx/v4"
@@ -63,17 +64,16 @@ func (c Config) Verify(ctx context.Context, targets []*pgx.ConnConfig) (*Results
 	finalResults = NewResults(targetNames, c.TestModes)
 
 	// Then query each target database in parallel to generate table hashes.
-	var doneChannels []chan struct{}
+	wg := &sync.WaitGroup{}
 
 	for i, conn := range conns {
-		done := make(chan struct{})
-		go c.runTestsOnTarget(ctx, targetNames[i], conn, finalResults, done)
-		doneChannels = append(doneChannels, done)
+		wg.Add(1)
+
+		go c.runTestsOnTarget(ctx, targetNames[i], conn, finalResults, wg)
 	}
 
-	for _, done := range doneChannels {
-		<-done
-	}
+	// Wait for queries to complete
+	wg.Wait()
 
 	// Compare final results
 	reportErrors := finalResults.CheckForErrors()
@@ -86,25 +86,27 @@ func (c Config) Verify(ctx context.Context, targets []*pgx.ConnConfig) (*Results
 	return finalResults, nil
 }
 
-func (c Config) runTestsOnTarget(ctx context.Context, targetName string, conn *pgx.Conn, finalResults *Results, done chan struct{}) {
+func (c Config) runTestsOnTarget(ctx context.Context, targetName string, conn *pgx.Conn, finalResults *Results, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	logger := c.Logger.WithField("target", targetName)
 
 	schemaTableHashes, err := c.fetchTargetTableNames(ctx, conn)
 	if err != nil {
 		logger.WithError(err).Error("failed to fetch target tables")
-		close(done)
 
 		return
 	}
 
 	for schemaName, schemaHashes := range schemaTableHashes {
 		for tableName := range schemaHashes {
-			c.runTestQueriesOnTable(ctx, logger, conn, targetName, schemaName, tableName, finalResults)
+			wg.Add(1)
+
+			c.runTestQueriesOnTable(ctx, logger, conn, targetName, schemaName, tableName, finalResults, wg)
 		}
 	}
 
 	logger.Info("Table hashes computed")
-	close(done)
 }
 
 func (c Config) fetchTargetTableNames(ctx context.Context, conn *pgx.Conn) (DatabaseResult, error) {
@@ -155,7 +157,9 @@ func (c Config) validColumnTarget(columnName string) bool {
 	return false
 }
 
-func (c Config) runTestQueriesOnTable(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, targetName, schemaName, tableName string, finalResults *Results) {
+func (c Config) runTestQueriesOnTable(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, targetName, schemaName, tableName string, finalResults *Results, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	tableLogger := logger.WithField("table", tableName).WithField("schema", schemaName)
 	tableLogger.Info("Computing hash")
 
@@ -230,11 +234,14 @@ func (c Config) runTestQueriesOnTable(ctx context.Context, logger *logrus.Entry,
 
 		testLogger.Debugf("Generated query: %s", query)
 
-		runTestOnTable(ctx, testLogger, conn, targetName, schemaName, tableName, testMode, query, finalResults)
+		wg.Add(1)
+		runTestOnTable(ctx, testLogger, conn, targetName, schemaName, tableName, testMode, query, finalResults, wg)
 	}
 }
 
-func runTestOnTable(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, targetName, schemaName, tableName, testMode, query string, finalResults *Results) {
+func runTestOnTable(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, targetName, schemaName, tableName, testMode, query string, finalResults *Results, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	row := conn.QueryRow(ctx, query)
 
 	var testOutputString string
