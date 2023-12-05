@@ -97,9 +97,7 @@ func (c Config) runTestsOnTarget(ctx context.Context, targetName string, conn *p
 		return
 	}
 
-	schemaTableHashes = c.runTestQueriesOnDatabase(ctx, logger, conn, schemaTableHashes)
-
-	finalResults.AddResult(targetName, schemaTableHashes)
+	c.runTestQueriesOnDatabase(ctx, logger, conn, targetName, schemaTableHashes, finalResults)
 	logger.Info("Table hashes computed")
 	close(done)
 }
@@ -152,7 +150,7 @@ func (c Config) validColumnTarget(columnName string) bool {
 	return false
 }
 
-func (c Config) runTestQueriesOnDatabase(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, databaseHashes DatabaseResult) DatabaseResult {
+func (c Config) runTestQueriesOnDatabase(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, targetName string, databaseHashes DatabaseResult, finalResults *Results) {
 	databaseResults := make(DatabaseResult)
 
 	for schemaName, schemaHashes := range databaseHashes {
@@ -160,7 +158,7 @@ func (c Config) runTestQueriesOnDatabase(ctx context.Context, logger *logrus.Ent
 		databaseResults[schemaName] = schemaResult
 	}
 
-	return databaseResults
+	finalResults.AddResult(targetName, databaseResults)
 }
 
 func (c Config) runTestQueriesOnSchema(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, schemaName string, schemaHashes SchemaResult) SchemaResult {
