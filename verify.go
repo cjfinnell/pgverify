@@ -164,94 +164,107 @@ func (c Config) runTestQueriesOnDatabase(ctx context.Context, logger *logrus.Ent
 }
 
 func (c Config) runTestQueriesOnSchema(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, schemaName string, schemaHashes SchemaResult) SchemaResult {
+	schemaResults := make(SchemaResult)
+
 	for tableName := range schemaHashes {
-		tableLogger := logger.WithField("table", tableName).WithField("schema", schemaName)
-		tableLogger.Info("Computing hash")
-
-		rows, err := conn.Query(ctx, buildGetColumsQuery(schemaName, tableName))
-		if err != nil {
-			tableLogger.WithError(err).Error("Failed to query column names, data types")
-
-			continue
-		}
-
-		allTableColumns := make(map[string]column)
-
-		for rows.Next() {
-			var columnName, dataType, constraintName, constraintType pgtype.Text
-
-			err := rows.Scan(&columnName, &dataType, &constraintName, &constraintType)
-			if err != nil {
-				tableLogger.WithError(err).Error("Failed to parse column names, data types from query response")
-
-				continue
-			}
-
-			existing, ok := allTableColumns[columnName.String]
-			if ok {
-				existing.constraints = append(existing.constraints, constraintType.String)
-				allTableColumns[columnName.String] = existing
-			} else {
-				allTableColumns[columnName.String] = column{columnName.String, dataType.String, []string{constraintType.String}}
-			}
-		}
-
-		var tableColumns []column
-
-		var primaryKeyColumnNames []string
-
-		for _, col := range allTableColumns {
-			if col.IsPrimaryKey() {
-				primaryKeyColumnNames = append(primaryKeyColumnNames, col.name)
-			}
-
-			if c.validColumnTarget(col.name) {
-				tableColumns = append(tableColumns, col)
-			}
-		}
-
-		if len(primaryKeyColumnNames) == 0 {
-			tableLogger.Error("No primary keys found")
-
-			continue
-		}
-
-		tableLogger.WithFields(logrus.Fields{
-			"primary_keys": primaryKeyColumnNames,
-			"columns":      tableColumns,
-		}).Info("Determined columns to hash")
-
-		for _, testMode := range c.TestModes {
-			testLogger := tableLogger.WithField("test", testMode)
-
-			var query string
-
-			switch testMode {
-			case TestModeFull:
-				query = buildFullHashQuery(c, schemaName, tableName, tableColumns)
-			case TestModeBookend:
-				query = buildBookendHashQuery(c, schemaName, tableName, tableColumns, c.BookendLimit)
-			case TestModeSparse:
-				query = buildSparseHashQuery(c, schemaName, tableName, tableColumns, c.SparseMod)
-			case TestModeRowCount:
-				query = buildRowCountQuery(schemaName, tableName)
-			}
-
-			testLogger.Debugf("Generated query: %s", query)
-
-			testOutput, err := runTestOnTable(ctx, conn, query)
-			if err != nil {
-				testLogger.WithError(err).Error("Failed to compute hash")
-
-				continue
-			}
-
-			schemaHashes[tableName][testMode] = testOutput
-			testLogger.Infof("Hash computed: %s", testOutput)
+		tableResult := c.runTestQueriesOnTable(ctx, logger, conn, schemaName, tableName)
+		if tableResult != nil {
+			schemaResults[tableName] = tableResult
 		}
 	}
 
-	return schemaHashes
+	return schemaResults
+}
+
+func (c Config) runTestQueriesOnTable(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, schemaName, tableName string) TableResult {
+	tableResults := make(TableResult)
+
+	tableLogger := logger.WithField("table", tableName).WithField("schema", schemaName)
+	tableLogger.Info("Computing hash")
+
+	rows, err := conn.Query(ctx, buildGetColumsQuery(schemaName, tableName))
+	if err != nil {
+		tableLogger.WithError(err).Error("Failed to query column names, data types")
+
+		return nil
+	}
+
+	allTableColumns := make(map[string]column)
+
+	for rows.Next() {
+		var columnName, dataType, constraintName, constraintType pgtype.Text
+
+		err := rows.Scan(&columnName, &dataType, &constraintName, &constraintType)
+		if err != nil {
+			tableLogger.WithError(err).Error("Failed to parse column names, data types from query response")
+
+			continue
+		}
+
+		existing, ok := allTableColumns[columnName.String]
+		if ok {
+			existing.constraints = append(existing.constraints, constraintType.String)
+			allTableColumns[columnName.String] = existing
+		} else {
+			allTableColumns[columnName.String] = column{columnName.String, dataType.String, []string{constraintType.String}}
+		}
+	}
+
+	var tableColumns []column
+
+	var primaryKeyColumnNames []string
+
+	for _, col := range allTableColumns {
+		if col.IsPrimaryKey() {
+			primaryKeyColumnNames = append(primaryKeyColumnNames, col.name)
+		}
+
+		if c.validColumnTarget(col.name) {
+			tableColumns = append(tableColumns, col)
+		}
+	}
+
+	if len(primaryKeyColumnNames) == 0 {
+		tableLogger.Error("No primary keys found")
+
+		return nil
+	}
+
+	tableLogger.WithFields(logrus.Fields{
+		"primary_keys": primaryKeyColumnNames,
+		"columns":      tableColumns,
+	}).Info("Determined columns to hash")
+
+	for _, testMode := range c.TestModes {
+		testLogger := tableLogger.WithField("test", testMode)
+
+		var query string
+
+		switch testMode {
+		case TestModeFull:
+			query = buildFullHashQuery(c, schemaName, tableName, tableColumns)
+		case TestModeBookend:
+			query = buildBookendHashQuery(c, schemaName, tableName, tableColumns, c.BookendLimit)
+		case TestModeSparse:
+			query = buildSparseHashQuery(c, schemaName, tableName, tableColumns, c.SparseMod)
+		case TestModeRowCount:
+			query = buildRowCountQuery(schemaName, tableName)
+		}
+
+		testLogger.Debugf("Generated query: %s", query)
+
+		testOutput, err := runTestOnTable(ctx, conn, query)
+		if err != nil {
+			testLogger.WithError(err).Error("Failed to compute hash")
+
+			continue
+		}
+
+		tableResults[testMode] = testOutput
+		testLogger.Infof("Hash computed: %s", testOutput)
+	}
+
+	return tableResults
 }
 
 func runTestOnTable(ctx context.Context, conn *pgx.Conn, query string) (string, error) {
