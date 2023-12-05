@@ -163,8 +163,6 @@ func (c Config) runTestQueriesOnSchema(ctx context.Context, logger *logrus.Entry
 }
 
 func (c Config) runTestQueriesOnTable(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, targetName, schemaName, tableName string, finalResults *Results) {
-	tableResults := make(TableResult)
-
 	tableLogger := logger.WithField("table", tableName).WithField("schema", schemaName)
 	tableLogger.Info("Computing hash")
 
@@ -239,35 +237,34 @@ func (c Config) runTestQueriesOnTable(ctx context.Context, logger *logrus.Entry,
 
 		testLogger.Debugf("Generated query: %s", query)
 
-		testOutput, err := runTestOnTable(ctx, conn, query)
-		if err != nil {
-			testLogger.WithError(err).Error("Failed to compute hash")
-
-			continue
-		}
-
-		tableResults[testMode] = testOutput
-		testLogger.Infof("Hash computed: %s", testOutput)
+		runTestOnTable(ctx, testLogger, conn, targetName, schemaName, tableName, testMode, query, finalResults)
 	}
-
-	databaseResults := make(DatabaseResult)
-	databaseResults[schemaName] = make(SchemaResult)
-	databaseResults[schemaName][tableName] = tableResults
-	finalResults.AddResult(targetName, databaseResults)
 }
 
-func runTestOnTable(ctx context.Context, conn *pgx.Conn, query string) (string, error) {
+func runTestOnTable(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, targetName, schemaName, tableName, testMode, query string, finalResults *Results) {
 	row := conn.QueryRow(ctx, query)
+
+	var testOutputString string
 
 	var testOutput pgtype.Text
 	if err := row.Scan(&testOutput); err != nil {
 		switch err {
 		case pgx.ErrNoRows:
-			return "no rows", nil
+			testOutputString = "no rows"
 		default:
-			return "", errors.Wrap(err, "failed to scan test output")
+			logger.WithError(err).Error("failed to scan test output")
+
+			return
 		}
+	} else {
+		testOutputString = testOutput.String
 	}
 
-	return testOutput.String, nil
+	logger.Infof("Hash computed: %s", testOutputString)
+
+	databaseResults := make(DatabaseResult)
+	databaseResults[schemaName] = make(SchemaResult)
+	databaseResults[schemaName][tableName] = make(TableResult)
+	databaseResults[schemaName][tableName][testMode] = testOutputString
+	finalResults.AddResult(targetName, databaseResults)
 }
