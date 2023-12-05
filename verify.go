@@ -157,21 +157,12 @@ func (c Config) runTestQueriesOnDatabase(ctx context.Context, logger *logrus.Ent
 }
 
 func (c Config) runTestQueriesOnSchema(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, targetName, schemaName string, schemaHashes SchemaResult, finalResults *Results) {
-	schemaResults := make(SchemaResult)
-
 	for tableName := range schemaHashes {
-		tableResult := c.runTestQueriesOnTable(ctx, logger, conn, schemaName, tableName)
-		if tableResult != nil {
-			schemaResults[tableName] = tableResult
-		}
+		c.runTestQueriesOnTable(ctx, logger, conn, targetName, schemaName, tableName, finalResults)
 	}
-
-	databaseResults := make(DatabaseResult)
-	databaseResults[schemaName] = schemaResults
-	finalResults.AddResult(targetName, databaseResults)
 }
 
-func (c Config) runTestQueriesOnTable(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, schemaName, tableName string) TableResult {
+func (c Config) runTestQueriesOnTable(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, targetName, schemaName, tableName string, finalResults *Results) {
 	tableResults := make(TableResult)
 
 	tableLogger := logger.WithField("table", tableName).WithField("schema", schemaName)
@@ -181,7 +172,7 @@ func (c Config) runTestQueriesOnTable(ctx context.Context, logger *logrus.Entry,
 	if err != nil {
 		tableLogger.WithError(err).Error("Failed to query column names, data types")
 
-		return nil
+		return
 	}
 
 	allTableColumns := make(map[string]column)
@@ -222,7 +213,7 @@ func (c Config) runTestQueriesOnTable(ctx context.Context, logger *logrus.Entry,
 	if len(primaryKeyColumnNames) == 0 {
 		tableLogger.Error("No primary keys found")
 
-		return nil
+		return
 	}
 
 	tableLogger.WithFields(logrus.Fields{
@@ -259,7 +250,10 @@ func (c Config) runTestQueriesOnTable(ctx context.Context, logger *logrus.Entry,
 		testLogger.Infof("Hash computed: %s", testOutput)
 	}
 
-	return tableResults
+	databaseResults := make(DatabaseResult)
+	databaseResults[schemaName] = make(SchemaResult)
+	databaseResults[schemaName][tableName] = tableResults
+	finalResults.AddResult(targetName, databaseResults)
 }
 
 func runTestOnTable(ctx context.Context, conn *pgx.Conn, query string) (string, error) {
