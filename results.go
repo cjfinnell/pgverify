@@ -38,16 +38,24 @@ func NewResults(targetNames []string, testModes []string) *Results {
 	}
 }
 
-// SingleResult represents the verification result from a single target, with the schema:
-// SingleResult[schema][table][mode] = test output.
-type SingleResult map[string]map[string]map[string]string
+// DatabaseResult represents the verification result from a single target database:
+// DatabaseResult[schema][table][mode] = test output.
+type DatabaseResult map[string]SchemaResult
+
+// SchemaResult represents the verification result from a single schema:
+// SchemaResult[table][mode] = test output.
+type SchemaResult map[string]TableResult
+
+// TableResult represents the verification result from a single table:
+// TableResult[mode] = test output.
+type TableResult map[string]string
 
 // AddResult adds a SingleResult from a test on a specific target to the Results object.
-func (r *Results) AddResult(targetName string, schemaTableHashes SingleResult) {
+func (r *Results) AddResult(targetName string, databaseHashes DatabaseResult) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	for schema, tables := range schemaTableHashes {
+	for schema, tables := range databaseHashes {
 		if _, ok := r.content[schema]; !ok {
 			r.content[schema] = make(map[string]map[string]map[string][]string)
 		}

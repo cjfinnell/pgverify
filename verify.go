@@ -104,8 +104,8 @@ func (c Config) runTestsOnTarget(ctx context.Context, targetName string, conn *p
 	close(done)
 }
 
-func (c Config) fetchTargetTableNames(ctx context.Context, conn *pgx.Conn) (SingleResult, error) {
-	schemaTableHashes := make(SingleResult)
+func (c Config) fetchTargetTableNames(ctx context.Context, conn *pgx.Conn) (DatabaseResult, error) {
+	schemaTableHashes := make(DatabaseResult)
 
 	rows, err := conn.Query(ctx, buildGetTablesQuery(c.IncludeSchemas, c.ExcludeSchemas, c.IncludeTables, c.ExcludeTables))
 	if err != nil {
@@ -119,10 +119,10 @@ func (c Config) fetchTargetTableNames(ctx context.Context, conn *pgx.Conn) (Sing
 		}
 
 		if _, ok := schemaTableHashes[schema.String]; !ok {
-			schemaTableHashes[schema.String] = make(map[string]map[string]string)
+			schemaTableHashes[schema.String] = make(SchemaResult)
 		}
 
-		schemaTableHashes[schema.String][table.String] = make(map[string]string)
+		schemaTableHashes[schema.String][table.String] = make(TableResult)
 
 		for _, testMode := range c.TestModes {
 			schemaTableHashes[schema.String][table.String][testMode] = defaultErrorOutput
@@ -152,8 +152,8 @@ func (c Config) validColumnTarget(columnName string) bool {
 	return false
 }
 
-func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, schemaTableHashes SingleResult) SingleResult {
-	for schemaName, tables := range schemaTableHashes {
+func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, databaseHashes DatabaseResult) DatabaseResult {
+	for schemaName, tables := range databaseHashes {
 		for tableName := range tables {
 			tableLogger := logger.WithField("table", tableName).WithField("schema", schemaName)
 			tableLogger.Info("Computing hash")
@@ -236,13 +236,13 @@ func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry
 					continue
 				}
 
-				schemaTableHashes[schemaName][tableName][testMode] = testOutput
+				databaseHashes[schemaName][tableName][testMode] = testOutput
 				testLogger.Infof("Hash computed: %s", testOutput)
 			}
 		}
 	}
 
-	return schemaTableHashes
+	return databaseHashes
 }
 
 func runTestOnTable(ctx context.Context, conn *pgx.Conn, query string) (string, error) {
