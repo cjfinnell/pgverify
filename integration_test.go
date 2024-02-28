@@ -199,6 +199,8 @@ func TestVerifyData(t *testing.T) {
 		"bigint[]":         {"'{602213950000000000, -1}'"},
 		"integer":          {"0", "123979", "-23974"},
 		"double precision": {"69.123987", "-69.123987"},
+		"numeric":          {"0", "123.456", "-123.456"},
+		"decimal":          {"0", "123.456", "-123.456"},
 
 		"text":                  {`'foo'`, `'bar'`, `''`, `'something that is much longer but without much other complication'`},
 		"uuid":                  {fmt.Sprintf("'%s'", uuid.New().String())},
