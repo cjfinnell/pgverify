@@ -390,10 +390,14 @@ func TestVerifyDataFail(t *testing.T) {
 		conns = append(conns, conn)
 		targets = append(targets, config)
 
-		// Create tables, insert 1 for each to start
+		// Create tables, initially all the same
 		initTableQuery := `
 			create table failtest (id int primary key);
+			insert into failtest (id) values (1);
+			insert into failtest (id) values (2);
+			insert into failtest (id) values (3);
 			insert into failtest (id) values (5);
+			insert into failtest (id) values (6);
 		`
 		_, err = conn.Exec(ctx, initTableQuery)
 		require.NoError(t, err)
@@ -415,12 +419,12 @@ func TestVerifyDataFail(t *testing.T) {
 		pgverify.TestModeRowCount,
 	} {
 		test := test
-		t.Run(test+"/AllSameRowPass", func(t *testing.T) {
+		t.Run(test+"/AllSameRowsPass", func(t *testing.T) {
 			results, err := pgverify.Verify(
 				ctx,
 				targets,
 				pgverify.WithTests(test),
-				pgverify.WithBookendLimit(1),
+				pgverify.WithBookendLimit(4),
 				pgverify.WithSparseMod(1),
 				pgverify.WithLogger(logger),
 				pgverify.IncludeSchemas("public"),
@@ -431,18 +435,16 @@ func TestVerifyDataFail(t *testing.T) {
 		})
 	}
 
-	// Insert a second row in just the first db
-	// The higher id (6>5) will cause this row's hash to be ignored by
-	// the 'full' and 'sparse' tests (see query.go)
+	// Insert a row in just the first db
 	addRowQuery := `
-		insert into failtest (id) values (6);
+		insert into failtest (id) values (4);
 	`
 	_, err := conns[0].Exec(ctx, addRowQuery)
 	require.NoError(t, err)
 
 	for _, test := range []string{
-		pgverify.TestModeFull,   // should fail, does not
-		pgverify.TestModeSparse, // should fail, does not
+		pgverify.TestModeFull,
+		pgverify.TestModeSparse,
 		pgverify.TestModeBookend,
 		pgverify.TestModeRowCount,
 	} {
@@ -452,7 +454,7 @@ func TestVerifyDataFail(t *testing.T) {
 				ctx,
 				targets,
 				pgverify.WithTests(test),
-				pgverify.WithBookendLimit(1),
+				pgverify.WithBookendLimit(4),
 				pgverify.WithSparseMod(1),
 				pgverify.WithLogger(logger),
 				pgverify.IncludeSchemas("public"),

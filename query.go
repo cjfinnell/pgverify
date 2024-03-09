@@ -122,13 +122,17 @@ func buildFullHashQuery(config Config, schemaName, tableName string, columns []c
 		primaryColumnConcatString = fmt.Sprintf("MD5(%s)", primaryColumnConcatString)
 	}
 
-	// The 'GROUP BY grouper' with grouper as an empty string is causing only the
-	// first returned result to be passed to string_agg()
 	return formatQuery(fmt.Sprintf(`
 		SELECT md5(string_agg(hash, ''))
-		FROM (SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash, %s as primary_key FROM "%s"."%s") AS eachrow
-		GROUP BY grouper, primary_key ORDER BY primary_key
-		`, strings.Join(columnsWithCasting, ", "), primaryColumnConcatString, schemaName, tableName))
+		FROM (
+			SELECT MD5(CONCAT(%s)) AS hash
+			FROM "%s"."%s"
+			ORDER BY %s
+		) as eachhash
+		`, strings.Join(columnsWithCasting, ", "),
+		schemaName, tableName,
+		primaryColumnConcatString,
+	))
 }
 
 // Similar to the full test query, this test differs by first selecting a subset
@@ -186,21 +190,20 @@ func buildSparseHashQuery(config Config, schemaName, tableName string, columns [
 		primaryColumnConcatString = fmt.Sprintf("MD5(%s)", primaryColumnConcatString)
 	}
 
-	// This falls into the same trap as the full test query
 	return formatQuery(fmt.Sprintf(`
 		SELECT md5(string_agg(hash, ''))
 		FROM (
-			SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash, %s as primary_key
+			SELECT MD5(CONCAT(%s)) AS hash
 			FROM "%s"."%s"
 			WHERE %s
-			ORDER BY CONCAT(%s)
+			ORDER BY %s
 		) AS eachrow
-		GROUP BY grouper, primary_key
-		ORDER BY primary_key
 		`,
-		strings.Join(columnsWithCasting, ", "), primaryColumnConcatString,
-		schemaName, tableName, whenClausesString,
-		primaryKeyNamesWithCastingString))
+		strings.Join(columnsWithCasting, ", "),
+		schemaName, tableName,
+		whenClausesString,
+		primaryColumnConcatString,
+	))
 }
 
 // Like the full test query, but only looks at the first and last N rows for generating hashes.
@@ -230,28 +233,24 @@ func buildBookendHashQuery(config Config, schemaName, tableName string, columns 
 		allPrimaryColumnsConcatString = fmt.Sprintf("MD5(%s)", allPrimaryColumnsConcatString)
 	}
 
-	// This 'should' fail as well in our current implementation, but the
-	// --sparse-mod=1 spec is hiding the issue
 	return formatQuery(fmt.Sprintf(`
 			SELECT md5(CONCAT(starthash::TEXT, endhash::TEXT))
 			FROM (
 				SELECT md5(string_agg(hash, ''))
 				FROM (
-					SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash
+					SELECT MD5(CONCAT(%s)) AS hash
 					FROM "%s"."%s"
 					ORDER BY %s ASC
 					LIMIT %d
 				) AS eachrow
-				GROUP BY grouper
 			) as starthash, (
 				SELECT md5(string_agg(hash, ''))
 				FROM (
-					SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash
+					SELECT MD5(CONCAT(%s)) AS hash
 					FROM "%s"."%s"
 					ORDER BY %s DESC
 					LIMIT %d
 				) AS eachrow
-				GROUP BY grouper
 			) as endhash
 			`, allColumnsWithCasting, schemaName, tableName, allPrimaryColumnsConcatString, limit, allColumnsWithCasting, schemaName, tableName, allPrimaryColumnsConcatString, limit))
 }
