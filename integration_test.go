@@ -430,4 +430,36 @@ func TestVerifyDataFail(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+
+	// Insert a second row in just the first db
+	// The higher id (6>5) will cause this row's hash to be ignored by
+	// the 'full' and 'sparse' tests (see query.go)
+	addRowQuery := `
+		insert into failtest (id) values (6);
+	`
+	_, err := conns[0].Exec(ctx, addRowQuery)
+	require.NoError(t, err)
+
+	for _, test := range []string{
+		pgverify.TestModeFull,   // should fail, does not
+		pgverify.TestModeSparse, // should fail, does not
+		pgverify.TestModeBookend,
+		pgverify.TestModeRowCount,
+	} {
+		test := test
+		t.Run(test+"/FailAfterInsert", func(t *testing.T) {
+			results, err := pgverify.Verify(
+				ctx,
+				targets,
+				pgverify.WithTests(test),
+				pgverify.WithBookendLimit(1),
+				pgverify.WithSparseMod(1),
+				pgverify.WithLogger(logger),
+				pgverify.IncludeSchemas("public"),
+				pgverify.WithAliases(aliases),
+			)
+			results.WriteAsTable(os.Stdout)
+			require.Error(t, err) // should fail
+		})
+	}
 }
