@@ -48,17 +48,17 @@ func waitForDBReady(t *testing.T, ctx context.Context, config *pgx.ConnConfig) b
 	return connected
 }
 
-func createContainer(t *testing.T, ctx context.Context, image string, port int, env, cmd []string) (string, int, error) {
+func createContainer(t *testing.T, ctx context.Context, image string, port int, env, cmd []string) (int, error) {
 	t.Helper()
 
 	docker, err := newDockerClient()
 	if err != nil {
-		return "", 0, err
+		return 0, err
 	}
 
 	hostPort, err := getFreePort()
 	if err != nil {
-		return "", 0, errors.New("could not determine a free port")
+		return 0, errors.New("could not determine a free port")
 	}
 
 	container, err := docker.runContainer(
@@ -76,7 +76,7 @@ func createContainer(t *testing.T, ctx context.Context, image string, port int, 
 			cmd: cmd,
 		})
 	if err != nil {
-		return "", 0, err
+		return 0, err
 	}
 
 	t.Cleanup(func() {
@@ -85,7 +85,7 @@ func createContainer(t *testing.T, ctx context.Context, image string, port int, 
 		}
 	})
 
-	return container.ID, hostPort, nil
+	return hostPort, nil
 }
 
 func calculateRowCount(columnTypes map[string][]string) int {
@@ -266,7 +266,7 @@ func TestVerifyData(t *testing.T) {
 	for _, db := range dbs {
 		aliases = append(aliases, db.image)
 		// Create db and connect
-		_, port, err := createContainer(t, ctx, db.image, db.port, db.env, db.cmd)
+		port, err := createContainer(t, ctx, db.image, db.port, db.env, db.cmd)
 		require.NoError(t, err)
 		config, err := pgx.ParseConfig(fmt.Sprintf("postgresql://%s@127.0.0.1:%d%s", db.userPassword, port, db.db))
 		require.NoError(t, err)
@@ -330,5 +330,138 @@ func TestVerifyData(t *testing.T) {
 		)
 		require.NoError(t, err)
 		results.WriteAsTable(os.Stdout)
+	}
+}
+
+func TestVerifyDataFail(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	// Arrange
+	ctx := context.Background()
+
+	dbs := []struct {
+		image        string
+		cmd          []string
+		env          []string
+		port         int
+		userPassword string
+		db           string
+	}{
+		{
+			image: "postgres:12.11",
+			cmd:   []string{"postgres"},
+			env: []string{
+				fmt.Sprintf("POSTGRES_DB=%s", dbName),
+				fmt.Sprintf("POSTGRES_USER=%s", dbUser),
+				fmt.Sprintf("POSTGRES_PASSWORD=%s", dbPassword),
+			},
+			port:         5432,
+			userPassword: dbUser + ":" + dbPassword,
+			db:           "/" + dbName,
+		},
+		{
+			image:        "cockroachdb/cockroach:latest", // cockroach cloud
+			cmd:          []string{"start-single-node", "--insecure"},
+			port:         26257,
+			userPassword: "root",
+		},
+	}
+
+	// Act
+	var targets []*pgx.ConnConfig
+
+	var aliases []string
+
+	var conns []*pgx.Conn
+
+	for _, db := range dbs {
+		// Create db and connect
+		port, err := createContainer(t, ctx, db.image, db.port, db.env, db.cmd)
+		require.NoError(t, err)
+		config, err := pgx.ParseConfig(fmt.Sprintf("postgresql://%s@127.0.0.1:%d%s", db.userPassword, port, db.db))
+		require.NoError(t, err)
+		assert.True(t, waitForDBReady(t, ctx, config))
+		conn, err := pgx.ConnectConfig(ctx, config)
+		require.NoError(t, err)
+
+		aliases = append(aliases, db.image)
+		conns = append(conns, conn)
+		targets = append(targets, config)
+
+		// Create tables, initially all the same
+		initTableQuery := `
+			create table failtest (id int primary key);
+			insert into failtest (id) values (1);
+			insert into failtest (id) values (2);
+			insert into failtest (id) values (3);
+			insert into failtest (id) values (5);
+			insert into failtest (id) values (6);
+		`
+		_, err = conn.Exec(ctx, initTableQuery)
+		require.NoError(t, err)
+	}
+
+	t.Cleanup(func() {
+		for _, conn := range conns {
+			conn.Close(ctx)
+		}
+	})
+
+	logger := logrus.New()
+	logger.Level = logrus.DebugLevel
+
+	for _, test := range []string{
+		pgverify.TestModeFull,
+		pgverify.TestModeSparse,
+		pgverify.TestModeBookend,
+		pgverify.TestModeRowCount,
+	} {
+		test := test
+		t.Run(test+"/AllSameRowsPass", func(t *testing.T) {
+			results, err := pgverify.Verify(
+				ctx,
+				targets,
+				pgverify.WithTests(test),
+				pgverify.WithBookendLimit(4),
+				pgverify.WithSparseMod(1),
+				pgverify.WithLogger(logger),
+				pgverify.IncludeSchemas("public"),
+				pgverify.WithAliases(aliases),
+			)
+			results.WriteAsTable(os.Stdout)
+			require.NoError(t, err)
+		})
+	}
+
+	// Insert a row in just the first db
+	addRowQuery := `
+		insert into failtest (id) values (4);
+	`
+	_, err := conns[0].Exec(ctx, addRowQuery)
+	require.NoError(t, err)
+
+	for _, test := range []string{
+		pgverify.TestModeFull,
+		pgverify.TestModeSparse,
+		pgverify.TestModeBookend,
+		pgverify.TestModeRowCount,
+	} {
+		test := test
+		t.Run(test+"/FailAfterInsert", func(t *testing.T) {
+			results, err := pgverify.Verify(
+				ctx,
+				targets,
+				pgverify.WithTests(test),
+				pgverify.WithBookendLimit(4),
+				pgverify.WithSparseMod(1),
+				pgverify.WithLogger(logger),
+				pgverify.IncludeSchemas("public"),
+				pgverify.WithAliases(aliases),
+			)
+			results.WriteAsTable(os.Stdout)
+			require.Error(t, err) // should fail
+		})
 	}
 }
