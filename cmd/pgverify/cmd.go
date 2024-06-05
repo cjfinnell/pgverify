@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/jackc/pgx/v4"
@@ -47,18 +46,30 @@ func init() {
 var rootCmd = &cobra.Command{
 	Use:  "pgverify [flags] target-uri...",
 	Long: `Verify data consistency between PostgreSQL syntax compatible databases.`,
-	Args: cobra.MinimumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Run: func(cmd *cobra.Command, args []string) {
+		logger := log.New()
+		logger.SetFormatter(&log.TextFormatter{})
+		levelInt, err := log.ParseLevel(*logLevelFlag)
+		if err != nil {
+			levelInt = log.InfoLevel
+		}
+		logger.SetLevel(levelInt)
+
+		if len(args) == 0 {
+			logger.Fatal("requires at least 1 arg(s), received 0; see 'pgverify --help' for more information")
+		}
+
 		var targets []*pgx.ConnConfig
 		for _, target := range args {
 			connConfig, err := pgx.ParseConfig(target)
 			if err != nil {
-				return fmt.Errorf("invalid target URI %s: %w", target, err)
+				logger.Fatalf("invalid target URI %s: %s", target, err)
 			}
 			targets = append(targets, connConfig)
 		}
 
 		opts := []pgverify.Option{
+			pgverify.WithLogger(logger),
 			pgverify.IncludeTables(*includeTablesFlag...),
 			pgverify.ExcludeTables(*excludeTablesFlag...),
 			pgverify.IncludeSchemas(*includeSchemasFlag...),
@@ -75,15 +86,6 @@ var rootCmd = &cobra.Command{
 			opts = append(opts, pgverify.WithHashPrimaryKeys())
 		}
 
-		logger := log.New()
-		logger.SetFormatter(&log.TextFormatter{})
-		levelInt, err := log.ParseLevel(*logLevelFlag)
-		if err != nil {
-			levelInt = log.InfoLevel
-		}
-		logger.SetLevel(levelInt)
-		opts = append(opts, pgverify.WithLogger(logger))
-
 		if len(*aliasesFlag) > 0 {
 			opts = append(opts, pgverify.WithAliases(*aliasesFlag))
 		}
@@ -91,6 +93,8 @@ var rootCmd = &cobra.Command{
 		report, err := pgverify.Verify(cmd.Context(), targets, opts...)
 		report.WriteAsTable(cmd.OutOrStdout())
 
-		return err
+		if err != nil {
+			logger.Fatal(err)
+		}
 	},
 }
