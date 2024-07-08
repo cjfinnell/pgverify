@@ -55,9 +55,9 @@ func TestBuildFullHashQuery(t *testing.T) {
 			expectedQuery: formatQuery(`
 			SELECT md5(string_agg(hash, ''))
 			FROM (
-				SELECT MD5(CONCAT((extract(epoch from date_trunc('milliseconds', when))::DECIMAL * 1000000)::BIGINT::TEXT, content::TEXT, id::TEXT)) AS hash
+				SELECT MD5(CONCAT("content"::TEXT, "id"::TEXT, (extract(epoch from date_trunc('milliseconds', "when"))::DECIMAL * 1000000)::BIGINT::TEXT)) AS hash
 				FROM "testSchema"."testTable"
-				ORDER BY CONCAT(id::TEXT)
+				ORDER BY CONCAT("id"::TEXT)
 			) as eachhash`),
 		},
 		{
@@ -74,9 +74,9 @@ func TestBuildFullHashQuery(t *testing.T) {
 			expectedQuery: formatQuery(`
 			SELECT md5(string_agg(hash, ''))
 			FROM (
-				SELECT MD5(CONCAT((extract(epoch from date_trunc('milliseconds', when))::DECIMAL * 1000000)::BIGINT::TEXT, content::TEXT, id::TEXT)) AS hash
+				SELECT MD5(CONCAT("content"::TEXT, "id"::TEXT, (extract(epoch from date_trunc('milliseconds', "when"))::DECIMAL * 1000000)::BIGINT::TEXT)) AS hash
 				FROM "testSchema"."testTable"
-				ORDER BY CONCAT(content::TEXT, id::TEXT)
+				ORDER BY CONCAT("content"::TEXT, "id"::TEXT)
 			) as eachhash`),
 		},
 		{
@@ -93,9 +93,9 @@ func TestBuildFullHashQuery(t *testing.T) {
 			expectedQuery: formatQuery(`
 			SELECT md5(string_agg(hash, ''))
 			FROM (
-				SELECT MD5(CONCAT((extract(epoch from date_trunc('milliseconds', when))::DECIMAL * 1000000)::BIGINT::TEXT, content::TEXT, id::TEXT)) AS hash
+				SELECT MD5(CONCAT("content"::TEXT, "id"::TEXT, (extract(epoch from date_trunc('milliseconds', "when"))::DECIMAL * 1000000)::BIGINT::TEXT)) AS hash
 				FROM "testSchema"."testTable"
-				ORDER BY MD5(CONCAT(content::TEXT, id::TEXT))
+				ORDER BY MD5(CONCAT("content"::TEXT, "id"::TEXT))
 			) as eachhash`),
 		},
 	} {
@@ -128,14 +128,14 @@ func TestBuildSparseHashQuery(t *testing.T) {
 			expectedQuery: formatQuery(`
 			SELECT md5(string_agg(hash, ''))
 			FROM (
-				SELECT MD5(CONCAT((extract(epoch from date_trunc('milliseconds', when))::DECIMAL * 1000000)::BIGINT::TEXT, content::TEXT, id::TEXT)) AS hash
+				SELECT MD5(CONCAT("content"::TEXT, "id"::TEXT, (extract(epoch from date_trunc('milliseconds', "when"))::DECIMAL * 1000000)::BIGINT::TEXT)) AS hash
 				FROM "testSchema"."testTable"
 				WHERE id in (
 					SELECT id
 					FROM "testSchema"."testTable"
-					WHERE ('x' || substr(md5(CONCAT(id::TEXT)),1,16))::bit(64)::bigint % 10 = 0
+					WHERE ('x' || substr(md5(CONCAT("id"::TEXT)),1,16))::bit(64)::bigint % 10 = 0
 				)
-				ORDER BY CONCAT(id::TEXT)
+				ORDER BY CONCAT("id"::TEXT)
 			) AS eachrow`),
 		},
 		{
@@ -151,17 +151,17 @@ func TestBuildSparseHashQuery(t *testing.T) {
 			expectedQuery: formatQuery(`
 			SELECT md5(string_agg(hash, ''))
 			FROM (
-				SELECT MD5(CONCAT((extract(epoch from date_trunc('milliseconds', when))::DECIMAL * 1000000)::BIGINT::TEXT, content::TEXT, id::TEXT)) AS hash
+				SELECT MD5(CONCAT("content"::TEXT, "id"::TEXT, (extract(epoch from date_trunc('milliseconds', "when"))::DECIMAL * 1000000)::BIGINT::TEXT)) AS hash
 				FROM "testSchema"."testTable"
 				WHERE content in (
 					SELECT content
 					FROM "testSchema"."testTable"
-					WHERE ('x' || substr(md5(CONCAT(content::TEXT, id::TEXT)),1,16))::bit(64)::bigint % 10 = 0
+					WHERE ('x' || substr(md5(CONCAT("content"::TEXT, "id"::TEXT)),1,16))::bit(64)::bigint % 10 = 0
 				) AND id in (
 					SELECT id
 					FROM "testSchema"."testTable"
-					WHERE ('x' || substr(md5(CONCAT(content::TEXT, id::TEXT)),1,16))::bit(64)::bigint % 10 = 0
-				) ORDER BY CONCAT(content::TEXT, id::TEXT)
+					WHERE ('x' || substr(md5(CONCAT("content"::TEXT, "id"::TEXT)),1,16))::bit(64)::bigint % 10 = 0
+				) ORDER BY CONCAT("content"::TEXT, "id"::TEXT)
 			) AS eachrow`),
 		},
 		{
@@ -177,17 +177,17 @@ func TestBuildSparseHashQuery(t *testing.T) {
 			expectedQuery: formatQuery(`
 			SELECT md5(string_agg(hash, ''))
 			FROM (
-				SELECT MD5(CONCAT((extract(epoch from date_trunc('milliseconds', when))::DECIMAL * 1000000)::BIGINT::TEXT, content::TEXT, id::TEXT)) AS hash
+				SELECT MD5(CONCAT("content"::TEXT, "id"::TEXT, (extract(epoch from date_trunc('milliseconds', "when"))::DECIMAL * 1000000)::BIGINT::TEXT)) AS hash
 				FROM "testSchema"."testTable"
 				WHERE content in (
 					SELECT content
 					FROM "testSchema"."testTable"
-					WHERE ('x' || substr(md5(CONCAT(content::TEXT, id::TEXT)),1,16))::bit(64)::bigint % 10 = 0
+					WHERE ('x' || substr(md5(CONCAT("content"::TEXT, "id"::TEXT)),1,16))::bit(64)::bigint % 10 = 0
 				) AND id in (
 					SELECT id
 					FROM "testSchema"."testTable"
-					WHERE ('x' || substr(md5(CONCAT(content::TEXT, id::TEXT)),1,16))::bit(64)::bigint % 10 = 0
-				) ORDER BY MD5(CONCAT(content::TEXT, id::TEXT))
+					WHERE ('x' || substr(md5(CONCAT("content"::TEXT, "id"::TEXT)),1,16))::bit(64)::bigint % 10 = 0
+				) ORDER BY MD5(CONCAT("content"::TEXT, "id"::TEXT))
 			) AS eachrow`),
 		},
 	} {

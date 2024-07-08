@@ -235,7 +235,7 @@ func TestVerifyData(t *testing.T) {
 	sort.Strings(keysWithTypes)
 	sort.Strings(sortedTypes)
 
-	tableNames := []string{"testtable1", "testTABLE_multi_col_2", "testtable3", "test_stringkey_table4"}
+	tableNames := []string{"testtable1", "testTABLE_multi_col_2", "testtable3", "test_stringkey_table4", "test_column_names"}
 	createTableQueryBase := fmt.Sprintf("( id INT DEFAULT 0 NOT NULL, zid INT DEFAULT 0 NOT NULL, sid TEXT NOT NULL, ignored TIMESTAMP WITH TIME ZONE DEFAULT NOW(), %s);", strings.Join(keysWithTypes, ", "))
 
 	rowCount := calculateRowCount(columnTypes)
@@ -278,6 +278,18 @@ func TestVerifyData(t *testing.T) {
 
 		// Create and populate tables
 		for _, tableName := range tableNames {
+			if tableName == "test_column_names" {
+				_, err = conn.Exec(ctx, `
+				CREATE TABLE test_column_names (
+					id INT PRIMARY KEY,
+					"default" INT,
+					"order" INT
+				);`)
+				require.NoError(t, err, "Failed to initialize 'test_column_names' table")
+
+				continue // skip populating this table
+			}
+
 			createTableQuery := fmt.Sprintf(`CREATE TABLE "%s" %s`, tableName, createTableQueryBase)
 			_, err = conn.Exec(ctx, createTableQuery)
 			require.NoError(t, err, "Failed to create table %s on %v with query: %s", tableName, db.image, createTableQuery)
