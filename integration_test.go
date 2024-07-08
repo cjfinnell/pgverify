@@ -281,7 +281,9 @@ func TestVerifyData(t *testing.T) {
 			if tableName == "test_column_names" {
 				_, err = conn.Exec(ctx, `
 				CREATE TABLE test_column_names (
-					id INT PRIMARY KEY
+					id INT PRIMARY KEY,
+					"default" INT,
+					"order" INT
 				);`)
 				require.NoError(t, err, "Failed to initialize 'test_column_names' table")
 
