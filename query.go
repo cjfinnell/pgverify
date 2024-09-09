@@ -20,7 +20,7 @@ func formatQuery(query string) string {
 // SQL 'WHERE' clause. Exclusions override inclusions.
 func buildGetTablesQuery(includeSchemas, excludeSchemas, includeTables, excludeTables []string) string {
 	query := "SELECT table_schema, table_name FROM information_schema.tables"
-	whereClauses := []string{}
+	whereClauses := []string{"table_type != 'VIEW'"}
 
 	if len(includeSchemas) > 0 {
 		whereClause := "table_schema IN ("
