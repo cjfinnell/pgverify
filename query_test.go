@@ -20,7 +20,7 @@ func TestBuildGetTablesQuery(t *testing.T) {
 	}{
 		{
 			name:          "no filters",
-			expectedQuery: "SELECT table_schema, table_name FROM information_schema.tables",
+			expectedQuery: "SELECT table_schema, table_name FROM information_schema.tables WHERE table_type != 'VIEW'",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
