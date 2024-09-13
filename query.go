@@ -91,7 +91,7 @@ func buildGetColumsQuery(schemaName, tableName string) string {
 			LEFT OUTER JOIN information_schema.table_constraints as tc ON (
 				k.constraint_name = tc.constraint_name
 			)
-		WHERE c.table_name = '%s' AND c.table_schema = '%s'
+		WHERE c.table_name = '%s' AND c.table_schema = '%s' AND c.is_generated != 'ALWAYS'
 		`, tableName, schemaName))
 }
 
