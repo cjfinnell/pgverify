@@ -196,7 +196,7 @@ func TestVerifyData(t *testing.T) {
 		"bit(1)":    {"'1'", "'0'"},
 		"varbit(3)": {"'0'", "'1'", "'101'", "'010'"},
 
-		"bigint[]":         {"'{602213950000000000, -1}'"},
+		"bigint[]":         {"'{602213950000000000, -1}'", "'{}'", "ARRAY[]::bigint[]"},
 		"integer":          {"0", "123979", "-23974"},
 		"double precision": {"69.123987", "-69.123987"},
 		"numeric":          {"0", "123.456", "-123.456"},
@@ -205,6 +205,7 @@ func TestVerifyData(t *testing.T) {
 		"text":                  {`'foo'`, `'bar'`, `''`, `'something that is much longer but without much other complication'`},
 		"uuid":                  {fmt.Sprintf("'%s'", uuid.New().String())},
 		`character varying(64)`: {`'more string stuff'`},
+		"text[]":                {`'{"foo", "bar"}'`, `'{"baz", "qux"}'`, `'{"foo", "bar", "baz", "qux"}'`, `ARRAY[]::text[]`, `'{}'`},
 
 		"jsonb": {`'{}'`, `'{"foo": ["bar", "baz"]}'`, `'{"foo": "bar"}'`, `'{"foo": "bar", "baz": "qux"}'`, `'{"for sure?": true, "has numbers": 123.456, "this is": ["some", "json", "blob"]}'`},
 		"json":  {`'{}'`, `'{"foo": ["bar", "baz"]}'`, `'{"foo": "bar"}'`, `'{"foo": "bar", "baz": "qux"}'`, `'{"for sure?": true, "has numbers": 123.456, "this is": ["some", "json", "blob"]}'`},
@@ -222,7 +223,7 @@ func TestVerifyData(t *testing.T) {
 		// Create sanitized column name from type
 		cleanName := strings.ReplaceAll(fmt.Sprintf("col_%s", k), " ", "_")
 		for _, char := range "()[]" {
-			cleanName = strings.ReplaceAll(cleanName, string(char), "")
+			cleanName = strings.ReplaceAll(cleanName, string(char), "X")
 		}
 
 		sortedTypes[i] = k
