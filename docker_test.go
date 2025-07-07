@@ -8,7 +8,6 @@ import (
 	"net"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
@@ -18,7 +17,7 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-var defaultTimeout = 10 * time.Second
+var defaultTimeout = 10
 
 // newDockerClient returns a docker client.
 func newDockerClient() (*dockerClient, error) {
@@ -67,7 +66,7 @@ func getFreePort() (int, error) {
 	return asTCPAddr.Port, nil
 }
 
-func (d dockerClient) runContainer(t *testing.T, ctx context.Context, config *containerConfig) (*container.ContainerCreateCreatedBody, error) {
+func (d dockerClient) runContainer(t *testing.T, ctx context.Context, config *containerConfig) (*container.CreateResponse, error) {
 	t.Helper()
 
 	imageName, err := reference.ParseNormalizedNamed(config.image)
@@ -92,7 +91,7 @@ func (d dockerClient) runContainer(t *testing.T, ctx context.Context, config *co
 	return container, nil
 }
 
-func (d dockerClient) createNewContainer(t *testing.T, ctx context.Context, image string, ports []*portMapping, env []string, cmd []string) (*container.ContainerCreateCreatedBody, error) {
+func (d dockerClient) createNewContainer(t *testing.T, ctx context.Context, image string, ports []*portMapping, env []string, cmd []string) (*container.CreateResponse, error) {
 	t.Helper()
 
 	portBinding := nat.PortMap{}
@@ -126,7 +125,7 @@ func (d dockerClient) createNewContainer(t *testing.T, ctx context.Context, imag
 	}
 	networkingConfig := &network.NetworkingConfig{}
 
-	var resp container.ContainerCreateCreatedBody
+	var resp container.CreateResponse
 
 	var err error
 
@@ -161,7 +160,7 @@ func (d dockerClient) removeContainer(t *testing.T, ctx context.Context, id stri
 
 	t.Logf("container %s is stopping\n", id)
 
-	err := d.ContainerStop(ctx, id, &defaultTimeout)
+	err := d.ContainerStop(ctx, id, container.StopOptions{Timeout: &defaultTimeout})
 	if err != nil {
 		return fmt.Errorf("failed stopping container: %w", err)
 	}
