@@ -1,14 +1,18 @@
+# pgverify
+
+[![CircleCI](https://dl.circleci.com/status-badge/img/gh/cjfinnell/pgverify/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/gh/cjfinnell/pgverify/tree/main)
 [![codecov](https://codecov.io/gh/udacity/pgverify/branch/main/graph/badge.svg?token=LsTntCpkUr)](https://codecov.io/gh/udacity/pgverify)
+[![Go Report Card](https://goreportcard.com/badge/github.com/cjfinnell/pgverify)](https://goreportcard.com/report/github.com/cjfinnell/pgverify)
 
 `pgverify` is a tool for verifying consistency of data between different database engines.
 
-# Why?
+## Why?
 
 Migrating database engines can be a huge headache; newer relational databases often try to mitigate this by asserting some level of PostgreSQL syntax compatability, but there can be small differences in data types, output formats, etc that make it difficult to affirmatively verify that the actual data between instances is in-sync.
 
 `pgverify` attempts to solve this with a suite of various tests executed against the specified targets and compared for consistency, many of which generate per-table hashes from the data.
 
-# Getting started
+## Getting started
 
 First, clone this repository and run `make build` to generate the `pgverify` binary. Then, run with specified targets as a list of PostrgeSQL syntax connection URIs:
 
@@ -51,14 +55,14 @@ $ ./pgverify \
 
 See `pgverify --help` for flag configuration options.
 
-# Supported databases
+## Supported databases
 
 | Database Engine     | Supported Versions |
 | ------------------- | ------------------ |
 | [PostgreSQL][psql]  | `>=10`             |
 | [CockroachDB][crdb] | `>=21.2`           |
 
-# Test modes
+## Test modes
 
 | Test mode  | Description                                                                                                 |
 | ---------- | ----------------------------------------------------------------------------------------------------------- |
@@ -67,7 +71,7 @@ See `pgverify --help` for flag configuration options.
 | `sparse`   | Generates an MD5 hash from approximately `1/X` rows in a table, configured by `--sparse-mod X`.             |
 | `rowcount` | Simply queries and compares total row count for a table.                                                    |
 
-# Gotchas
+## Gotchas
 
 * Due to PostgreSQL and CockroachDB having slightly differing ways of sorting keys in a `jsonb` value, this tool uses `length(jsonb::text)` as a low-fidelity proxy fingerprint.
 

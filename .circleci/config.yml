@@ -1,7 +1,6 @@
 version: 2.1
 orbs:
   codecov: codecov/codecov@3.2.2
-  ucheck: udacity/ucheck@1
 
 executors:
   go:
@@ -37,8 +36,3 @@ workflows:
           context: org-global
       - test:
           context: org-global
-      - ucheck/ucheck:
-          context: org-global
-          filters:
-            tags:
-              only: /^ucheck-.*/
