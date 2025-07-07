@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package tests defines an Analyzer that checks for common mistaken
-// usages of tests and examples.
 package tests
 
 import (
+	_ "embed"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -17,22 +16,17 @@ import (
 	"unicode/utf8"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/internal/analysisinternal"
+	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/internal/typeparams"
 )
 
-const Doc = `check for common mistaken usages of tests and examples
-
-The tests checker walks Test, Benchmark and Example functions checking
-malformed names, wrong signatures and examples documenting non-existent
-identifiers.
-
-Please see the documentation for package testing in golang.org/pkg/testing
-for the conventions that are enforced for Tests, Benchmarks, and Examples.`
+//go:embed doc.go
+var doc string
 
 var Analyzer = &analysis.Analyzer{
 	Name: "tests",
-	Doc:  Doc,
+	Doc:  analysisutil.MustExtractDoc(doc, "tests"),
+	URL:  "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/tests",
 	Run:  run,
 }
 
@@ -73,9 +67,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				checkTest(pass, fn, "Test")
 			case strings.HasPrefix(fn.Name.Name, "Benchmark"):
 				checkTest(pass, fn, "Benchmark")
-			}
-			// run fuzz tests diagnostics only for 1.18 i.e. when analysisinternal.DiagnoseFuzzTests is turned on.
-			if strings.HasPrefix(fn.Name.Name, "Fuzz") && analysisinternal.DiagnoseFuzzTests {
+			case strings.HasPrefix(fn.Name.Name, "Fuzz"):
 				checkTest(pass, fn, "Fuzz")
 				checkFuzz(pass, fn)
 			}
@@ -84,7 +76,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
-// Checks the contents of a fuzz function.
+// checkFuzz checks the contents of a fuzz function.
 func checkFuzz(pass *analysis.Pass, fn *ast.FuncDecl) {
 	params := checkFuzzCall(pass, fn)
 	if params != nil {
@@ -92,15 +84,17 @@ func checkFuzz(pass *analysis.Pass, fn *ast.FuncDecl) {
 	}
 }
 
-// Check the arguments of f.Fuzz() calls :
-// 1. f.Fuzz() should call a function and it should be of type (*testing.F).Fuzz().
-// 2. The called function in f.Fuzz(func(){}) should not return result.
-// 3. First argument of func() should be of type *testing.T
-// 4. Second argument onwards should be of type []byte, string, bool, byte,
-//	  rune, float32, float64, int, int8, int16, int32, int64, uint, uint8, uint16,
-//	  uint32, uint64
-// 5. func() must not call any *F methods, e.g. (*F).Log, (*F).Error, (*F).Skip
-//    The only *F methods that are allowed in the (*F).Fuzz function are (*F).Failed and (*F).Name.
+// checkFuzzCall checks the arguments of f.Fuzz() calls:
+//
+//  1. f.Fuzz() should call a function and it should be of type (*testing.F).Fuzz().
+//  2. The called function in f.Fuzz(func(){}) should not return result.
+//  3. First argument of func() should be of type *testing.T
+//  4. Second argument onwards should be of type []byte, string, bool, byte,
+//     rune, float32, float64, int, int8, int16, int32, int64, uint, uint8, uint16,
+//     uint32, uint64
+//  5. func() must not call any *F methods, e.g. (*F).Log, (*F).Error, (*F).Skip
+//     The only *F methods that are allowed in the (*F).Fuzz function are (*F).Failed and (*F).Name.
+//
 // Returns the list of parameters to the fuzz function, if they are valid fuzz parameters.
 func checkFuzzCall(pass *analysis.Pass, fn *ast.FuncDecl) (params *types.Tuple) {
 	ast.Inspect(fn, func(n ast.Node) bool {
@@ -160,7 +154,7 @@ func checkFuzzCall(pass *analysis.Pass, fn *ast.FuncDecl) (params *types.Tuple) 
 	return params
 }
 
-// Check that the arguments of f.Add() calls have the same number and type of arguments as
+// checkAddCalls checks that the arguments of f.Add calls have the same number and type of arguments as
 // the signature of the function passed to (*testing.F).Fuzz
 func checkAddCalls(pass *analysis.Pass, fn *ast.FuncDecl, params *types.Tuple) {
 	ast.Inspect(fn, func(n ast.Node) bool {
@@ -267,7 +261,9 @@ func isTestingType(typ types.Type, testingType string) bool {
 	if !ok {
 		return false
 	}
-	return named.Obj().Pkg().Path() == "testing" && named.Obj().Name() == testingType
+	obj := named.Obj()
+	// obj.Pkg is nil for the error type.
+	return obj != nil && obj.Pkg() != nil && obj.Pkg().Path() == "testing" && obj.Name() == testingType
 }
 
 // Validate that fuzz target function's arguments are of accepted types.
@@ -473,10 +469,12 @@ func checkTest(pass *analysis.Pass, fn *ast.FuncDecl, prefix string) {
 	if tparams := typeparams.ForFuncType(fn.Type); tparams != nil && len(tparams.List) > 0 {
 		// Note: cmd/go/internal/load also errors about TestXXX and BenchmarkXXX functions with type parameters.
 		// We have currently decided to also warn before compilation/package loading. This can help users in IDEs.
+		// TODO(adonovan): use ReportRangef(tparams).
 		pass.Reportf(fn.Pos(), "%s has type parameters: it will not be run by go test as a %sXXX function", fn.Name.Name, prefix)
 	}
 
 	if !isTestSuffix(fn.Name.Name[len(prefix):]) {
+		// TODO(adonovan): use ReportRangef(fn.Name).
 		pass.Reportf(fn.Pos(), "%s has malformed name: first letter after '%s' must not be lowercase", fn.Name.Name, prefix)
 	}
 }
