@@ -107,7 +107,7 @@ func TestVerifyData(t *testing.T) {
 	}
 
 	// Arrange
-	ctx := t.Context()
+	ctx := context.Background()
 
 	dbs := []struct {
 		image        string
@@ -351,7 +351,7 @@ func TestVerifyDataFail(t *testing.T) {
 	}
 
 	// Arrange
-	ctx := t.Context()
+	ctx := context.Background()
 
 	dbs := []struct {
 		image        string
@@ -422,7 +422,7 @@ func TestVerifyDataFail(t *testing.T) {
 	})
 
 	logger := logrus.New()
-	logger.Level = logrus.DebugLevel
+	logger.Level = logrus.WarnLevel
 
 	for _, test := range []string{
 		pgverify.TestModeFull,
