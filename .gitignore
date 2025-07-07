@@ -3,6 +3,3 @@
 
 # Test artifact
 /coverage.txt
-
-# Dev artifacts
-/.bin
