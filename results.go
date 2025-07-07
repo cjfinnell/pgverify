@@ -69,7 +69,7 @@ func (r *Results) AddResult(targetName string, schemaTableHashes SingleResult) {
 }
 
 // CheckForErrors checks for and returns a list of any errors found by comparing test outputs.
-func (r Results) CheckForErrors() []error {
+func (r *Results) CheckForErrors() []error {
 	var errors []error
 
 	for schema, tables := range r.content {
@@ -98,7 +98,7 @@ func (r Results) CheckForErrors() []error {
 }
 
 // WriteAsTable writes the results as a table to the given io.Writer.
-func (r Results) WriteAsTable(writer io.Writer) {
+func (r *Results) WriteAsTable(writer io.Writer) {
 	sort.Strings(r.testModes)
 
 	header := []string{"schema", "table"}

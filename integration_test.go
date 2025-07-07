@@ -323,27 +323,25 @@ func TestVerifyData(t *testing.T) {
 
 	logger := logrus.New()
 	logger.Level = logrus.ErrorLevel
-	// Test all the different verification strategies
-	for i = 0; i < 1; i++ {
-		results, err := pgverify.Verify(
-			ctx,
-			targets,
-			pgverify.WithTests(
-				pgverify.TestModeBookend,
-				pgverify.TestModeSparse,
-				pgverify.TestModeFull,
-				pgverify.TestModeRowCount,
-			),
-			pgverify.WithLogger(logger),
-			pgverify.ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
-			pgverify.ExcludeColumns("ignored", "rowid"),
-			pgverify.WithAliases(aliases),
-			pgverify.WithBookendLimit(5),
-			pgverify.WithHashPrimaryKeys(),
-		)
-		require.NoError(t, err)
-		results.WriteAsTable(os.Stdout)
-	}
+
+	results, err := pgverify.Verify(
+		ctx,
+		targets,
+		pgverify.WithTests(
+			pgverify.TestModeBookend,
+			pgverify.TestModeSparse,
+			pgverify.TestModeFull,
+			pgverify.TestModeRowCount,
+		),
+		pgverify.WithLogger(logger),
+		pgverify.ExcludeSchemas("pg_catalog", "pg_extension", "information_schema", "crdb_internal"),
+		pgverify.ExcludeColumns("ignored", "rowid"),
+		pgverify.WithAliases(aliases),
+		pgverify.WithBookendLimit(5),
+		pgverify.WithHashPrimaryKeys(),
+	)
+	require.NoError(t, err)
+	results.WriteAsTable(os.Stdout)
 }
 
 func TestVerifyDataFail(t *testing.T) {
