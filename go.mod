@@ -4,7 +4,7 @@ go 1.24
 
 require (
 	github.com/docker/distribution v2.8.2+incompatible
-	github.com/docker/docker v20.10.12+incompatible
+	github.com/docker/docker v24.0.9+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx v3.6.2+incompatible
