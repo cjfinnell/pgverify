@@ -9,12 +9,34 @@ import (
 
 // Len detects situations like
 //
-//	assert.Equal(t, 3, len(arr))
-//	assert.True(t, len(arr) == 3)
+//	assert.Equal(t, 42, len(arr))
+//	assert.Equal(t, len(arr), 42)
+//	assert.EqualValues(t, 42, len(arr))
+//	assert.EqualValues(t, len(arr), 42)
+//	assert.Exactly(t, 42, len(arr))
+//	assert.Exactly(t, len(arr), 42)
+//	assert.True(t, 42 == len(arr))
+//	assert.True(t, len(arr) == 42)
+//
+//	assert.Equal(t, value, len(arr))
+//	assert.EqualValues(t, value, len(arr))
+//	assert.Exactly(t, value, len(arr))
+//	assert.True(t, len(arr) == value)
+
+//	assert.Equal(t, len(expArr), len(arr))
+//	assert.EqualValues(t, len(expArr), len(arr))
+//	assert.Exactly(t, len(expArr), len(arr))
+//	assert.True(t, len(arr) == len(expArr))
 //
 // and requires
 //
-//	assert.Len(t, arr, 3)
+//	assert.Len(t, arr, 42)
+//	assert.Len(t, arr, value)
+//	assert.Len(t, arr, len(expArr))
+//
+// The checker ignores assertions in which length checking is not a priority, e.g
+//
+//	assert.Equal(t, len(arr), value)
 type Len struct{}
 
 // NewLen constructs Len checker.
@@ -22,65 +44,62 @@ func NewLen() Len        { return Len{} }
 func (Len) Name() string { return "len" }
 
 func (checker Len) Check(pass *analysis.Pass, call *CallMeta) *analysis.Diagnostic {
-	const proposedFn = "Len"
-
-	switch call.Fn.Name {
-	case "Equal", "Equalf":
+	switch call.Fn.NameFTrimmed {
+	case "Equal", "EqualValues", "Exactly":
 		if len(call.Args) < 2 {
 			return nil
 		}
+
 		a, b := call.Args[0], call.Args[1]
+		return checker.checkArgs(call, pass, a, b, false)
 
-		if lenArg, expectedLen, ok := xorLenCall(pass, a, b); ok {
-			return newUseFunctionDiagnostic(checker.Name(), call, proposedFn,
-				newSuggestedFuncReplacement(call, proposedFn, analysis.TextEdit{
-					Pos:     a.Pos(),
-					End:     b.End(),
-					NewText: formatAsCallArgs(pass, lenArg, expectedLen),
-				}),
-			)
-		}
-
-	case "True", "Truef":
+	case "True":
 		if len(call.Args) < 1 {
 			return nil
 		}
-		expr := call.Args[0]
 
-		if lenArg, expectedLen, ok := isLenEquality(pass, expr); ok {
-			return newUseFunctionDiagnostic(checker.Name(), call, proposedFn,
-				newSuggestedFuncReplacement(call, proposedFn, analysis.TextEdit{
-					Pos:     expr.Pos(),
-					End:     expr.End(),
-					NewText: formatAsCallArgs(pass, lenArg, expectedLen),
-				}),
-			)
+		be, ok := call.Args[0].(*ast.BinaryExpr)
+		if !ok {
+			return nil
 		}
+		if be.Op != token.EQL {
+			return nil
+		}
+		return checker.checkArgs(call, pass, be.Y, be.X, true) // In True, the actual value is usually first.
 	}
 	return nil
 }
 
-func xorLenCall(pass *analysis.Pass, a, b ast.Expr) (lenArg ast.Expr, expectedLen ast.Expr, ok bool) {
-	arg1, ok1 := isBuiltinLenCall(pass, a)
-	arg2, ok2 := isBuiltinLenCall(pass, b)
-
-	if xor(ok1, ok2) {
-		if ok1 {
-			return arg1, b, true
+func (checker Len) checkArgs(call *CallMeta, pass *analysis.Pass, a, b ast.Expr, inverted bool) *analysis.Diagnostic {
+	newUseLenDiagnostic := func(lenArg, expectedLen ast.Expr) *analysis.Diagnostic {
+		const proposedFn = "Len"
+		start, end := a.Pos(), b.End()
+		if inverted {
+			start, end = b.Pos(), a.End()
 		}
-		return arg2, a, true
-	}
-	return nil, nil, false
-}
-
-func isLenEquality(pass *analysis.Pass, e ast.Expr) (ast.Expr, ast.Expr, bool) {
-	be, ok := e.(*ast.BinaryExpr)
-	if !ok {
-		return nil, nil, false
+		return newUseFunctionDiagnostic(checker.Name(), call, proposedFn,
+			analysis.TextEdit{
+				Pos:     start,
+				End:     end,
+				NewText: formatAsCallArgs(pass, lenArg, expectedLen),
+			})
 	}
 
-	if be.Op != token.EQL {
-		return nil, nil, false
+	arg1, firstIsLen := isBuiltinLenCall(pass, a)
+	arg2, secondIsLen := isBuiltinLenCall(pass, b)
+
+	switch {
+	case firstIsLen && secondIsLen:
+		return newUseLenDiagnostic(arg2, a)
+
+	case firstIsLen:
+		if _, secondIsNum := isIntBasicLit(b); secondIsNum {
+			return newUseLenDiagnostic(arg1, b)
+		}
+
+	case secondIsLen:
+		return newUseLenDiagnostic(arg2, a)
 	}
-	return xorLenCall(pass, be.X, be.Y)
+
+	return nil
 }

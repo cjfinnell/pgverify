@@ -2,6 +2,7 @@ package pgverify_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -60,7 +61,7 @@ func getFreePort() (int, error) {
 
 	asTCPAddr, ok := l.Addr().(*net.TCPAddr)
 	if !ok {
-		return 0, fmt.Errorf("unable assert net.Addr as net.TCPAddr")
+		return 0, errors.New("unable assert net.Addr as net.TCPAddr")
 	}
 
 	return asTCPAddr.Port, nil
@@ -81,7 +82,8 @@ func (d dockerClient) runContainer(t *testing.T, ctx context.Context, config *co
 		return nil, fmt.Errorf("unable create container: %w", err)
 	}
 
-	if err = d.ContainerStart(ctx, container.ID, types.ContainerStartOptions{}); err != nil {
+	err = d.ContainerStart(ctx, container.ID, types.ContainerStartOptions{})
+	if err != nil {
 		return nil, fmt.Errorf("unable to start the container: %w", err)
 	}
 
@@ -159,13 +161,14 @@ func (d dockerClient) removeContainer(t *testing.T, ctx context.Context, id stri
 
 	t.Logf("container %s is stopping\n", id)
 
-	if err := d.ContainerStop(ctx, id, &defaultTimeout); err != nil {
+	err := d.ContainerStop(ctx, id, &defaultTimeout)
+	if err != nil {
 		return fmt.Errorf("failed stopping container: %w", err)
 	}
 
 	t.Logf("container %s is stopped\n", id)
 
-	err := d.Client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
+	err = d.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
 		RemoveVolumes: true,
 		// RemoveLinks=true causes "Error response from daemon: Conflict, cannot
 		// remove the default name of the container"

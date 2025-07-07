@@ -1,31 +1,43 @@
+version: "2"
 linters:
-  enable-all: true
+  default: all
   disable:
-    - deadcode # deprecated
-    - golint # deprecated
-    - ifshort # deprecated
-    - interfacer # deprecated
-    - maligned # deprecated
-    - nosnakecase # deprecated
-    - scopelint # deprecated
-    - structcheck # deprecated
-    - varcheck # deprecated
+    - cyclop
     - depguard
-    - exhaustivestruct
+    - err113
+    - errorlint
     - exhaustruct
+    - funlen
     - gochecknoglobals
     - gochecknoinits
+    - gocognit
+    - godox
+    - lll
     - paralleltest
-    - typecheck
-    - cyclop # todo
-    - errorlint # todo
-    - funlen # todo
-    - gci # todo
-    - gocognit # todo
-    - godox # todo
-    - goerr113 # todo
-    - lll # todo
-    - prealloc # todo
-    - revive # todo
-    - varnamelen # todo
-    - wrapcheck # todo
+    - prealloc
+    - revive
+    - varnamelen
+    - wrapcheck
+    - wsl
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

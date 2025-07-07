@@ -1,6 +1,6 @@
 CONTAINER=golangci/misspell
 
-default: lint test build
+default: generate lint test build
 
 install:  ## install misspell into GOPATH/bin
 	go install ./cmd/misspell
@@ -9,10 +9,13 @@ build:  ## build misspell
 	go build ./cmd/misspell
 
 test:  ## run all tests
-	go test -v .
+	CGO_ENABLED=1 go test -v -race .
 
 lint:  ## run linter
 	golangci-lint run
+
+generate:
+	go run ./internal/gen/
 
 # the grep in line 2 is to remove misspellings in the spelling dictionary
 # that trigger false positives!!
