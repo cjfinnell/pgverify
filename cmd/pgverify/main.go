@@ -3,7 +3,8 @@ package main
 import "log"
 
 func main() {
-	if err := rootCmd.Execute(); err != nil {
+	err := rootCmd.Execute()
+	if err != nil {
 		log.Fatal(err)
 	}
 }

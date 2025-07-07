@@ -80,7 +80,8 @@ func createContainer(t *testing.T, ctx context.Context, image string, port int, 
 	}
 
 	t.Cleanup(func() {
-		if err := docker.removeContainer(t, ctx, container.ID); err != nil {
+		err := docker.removeContainer(t, ctx, container.ID)
+		if err != nil {
 			t.Errorf("Could not remove container %s: %v", container.ID, err)
 		}
 	})

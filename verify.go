@@ -22,7 +22,8 @@ func Verify(ctx context.Context, targets []*pgx.ConnConfig, opts ...Option) (*Re
 func (c Config) Verify(ctx context.Context, targets []*pgx.ConnConfig) (*Results, error) {
 	var finalResults *Results
 
-	if err := c.Validate(); err != nil {
+	err := c.Validate()
+	if err != nil {
 		return finalResults, err
 	}
 
@@ -58,6 +59,7 @@ func (c Config) Verify(ctx context.Context, targets []*pgx.ConnConfig) (*Results
 		}
 
 		defer conn.Close(ctx)
+
 		conns[i] = conn
 	}
 
@@ -69,6 +71,7 @@ func (c Config) Verify(ctx context.Context, targets []*pgx.ConnConfig) (*Results
 	for i, conn := range conns {
 		done := make(chan struct{})
 		go c.runTestsOnTarget(ctx, targetNames[i], conn, finalResults, done)
+
 		doneChannels = append(doneChannels, done)
 	}
 
@@ -115,7 +118,9 @@ func (c Config) fetchTargetTableNames(ctx context.Context, conn *pgx.Conn) (Sing
 
 	for rows.Next() {
 		var schema, table pgtype.Text
-		if err := rows.Scan(&schema, &table); err != nil {
+
+		err := rows.Scan(&schema, &table)
+		if err != nil {
 			return schemaTableHashes, errors.Wrap(err, "failed to scan row data for table names")
 		}
 
@@ -250,7 +255,9 @@ func runTestOnTable(ctx context.Context, conn *pgx.Conn, query string) (string, 
 	row := conn.QueryRow(ctx, query)
 
 	var testOutput pgtype.Text
-	if err := row.Scan(&testOutput); err != nil {
+
+	err := row.Scan(&testOutput)
+	if err != nil {
 		switch err {
 		case pgx.ErrNoRows:
 			return "no rows", nil
