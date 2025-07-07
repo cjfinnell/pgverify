@@ -1,29 +1,20 @@
 linters:
   enable-all: true
   disable:
-    - deadcode # deprecated
-    - golint # deprecated
-    - ifshort # deprecated
-    - interfacer # deprecated
-    - maligned # deprecated
-    - nosnakecase # deprecated
-    - scopelint # deprecated
-    - structcheck # deprecated
-    - varcheck # deprecated
+    - tenv # deprecated
     - depguard
-    - exhaustivestruct
     - exhaustruct
     - gochecknoglobals
     - gochecknoinits
     - paralleltest
     - typecheck
     - cyclop # todo
+    - err113 # todo
     - errorlint # todo
     - funlen # todo
     - gci # todo
     - gocognit # todo
     - godox # todo
-    - goerr113 # todo
     - lll # todo
     - prealloc # todo
     - revive # todo
