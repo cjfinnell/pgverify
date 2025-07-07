@@ -5,7 +5,7 @@ orbs:
 executors:
   go:
     docker:
-      - image: cimg/go:1.21
+      - image: cimg/go:1.24
   vm:
     machine:
       image: ubuntu-2004:202111-02
