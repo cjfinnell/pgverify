@@ -56,6 +56,7 @@ func (c Config) Verify(ctx context.Context, targets []*pgx.ConnConfig) (*Results
 		if err != nil {
 			return finalResults, err
 		}
+
 		defer conn.Close(ctx)
 		conns[i] = conn
 	}

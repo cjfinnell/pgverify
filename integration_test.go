@@ -32,7 +32,7 @@ func waitForDBReady(t *testing.T, ctx context.Context, config *pgx.ConnConfig) b
 
 	connected := false
 
-	for count := 0; count < 30; count++ {
+	for range 30 {
 		conn, err := pgx.ConnectConfig(ctx, config)
 		if err == nil {
 			connected = true
@@ -106,7 +106,7 @@ func TestVerifyData(t *testing.T) {
 	}
 
 	// Arrange
-	ctx := context.Background()
+	ctx := t.Context()
 
 	dbs := []struct {
 		image        string
@@ -120,9 +120,9 @@ func TestVerifyData(t *testing.T) {
 			image: "postgres:10",
 			cmd:   []string{"postgres"},
 			env: []string{
-				fmt.Sprintf("POSTGRES_DB=%s", dbName),
-				fmt.Sprintf("POSTGRES_USER=%s", dbUser),
-				fmt.Sprintf("POSTGRES_PASSWORD=%s", dbPassword),
+				"POSTGRES_DB=" + dbName,
+				"POSTGRES_USER=" + dbUser,
+				"POSTGRES_PASSWORD=" + dbPassword,
 			},
 			port:         5432,
 			userPassword: dbUser + ":" + dbPassword,
@@ -132,9 +132,9 @@ func TestVerifyData(t *testing.T) {
 			image: "postgres:11",
 			cmd:   []string{"postgres"},
 			env: []string{
-				fmt.Sprintf("POSTGRES_DB=%s", dbName),
-				fmt.Sprintf("POSTGRES_USER=%s", dbUser),
-				fmt.Sprintf("POSTGRES_PASSWORD=%s", dbPassword),
+				"POSTGRES_DB=" + dbName,
+				"POSTGRES_USER=" + dbUser,
+				"POSTGRES_PASSWORD=" + dbPassword,
 			},
 			port:         5432,
 			userPassword: dbUser + ":" + dbPassword,
@@ -144,9 +144,9 @@ func TestVerifyData(t *testing.T) {
 			image: "postgres:12.6",
 			cmd:   []string{"postgres"},
 			env: []string{
-				fmt.Sprintf("POSTGRES_DB=%s", dbName),
-				fmt.Sprintf("POSTGRES_USER=%s", dbUser),
-				fmt.Sprintf("POSTGRES_PASSWORD=%s", dbPassword),
+				"POSTGRES_DB=" + dbName,
+				"POSTGRES_USER=" + dbUser,
+				"POSTGRES_PASSWORD=" + dbPassword,
 			},
 			port:         5432,
 			userPassword: dbUser + ":" + dbPassword,
@@ -156,9 +156,9 @@ func TestVerifyData(t *testing.T) {
 			image: "postgres:12.11",
 			cmd:   []string{"postgres"},
 			env: []string{
-				fmt.Sprintf("POSTGRES_DB=%s", dbName),
-				fmt.Sprintf("POSTGRES_USER=%s", dbUser),
-				fmt.Sprintf("POSTGRES_PASSWORD=%s", dbPassword),
+				"POSTGRES_DB=" + dbName,
+				"POSTGRES_USER=" + dbUser,
+				"POSTGRES_PASSWORD=" + dbPassword,
 			},
 			port:         5432,
 			userPassword: dbUser + ":" + dbPassword,
@@ -221,7 +221,7 @@ func TestVerifyData(t *testing.T) {
 
 	for k := range columnTypes {
 		// Create sanitized column name from type
-		cleanName := strings.ReplaceAll(fmt.Sprintf("col_%s", k), " ", "_")
+		cleanName := strings.ReplaceAll("col_"+k, " ", "_")
 		for _, char := range "()[]" {
 			cleanName = strings.ReplaceAll(cleanName, string(char), "X")
 		}
@@ -246,7 +246,7 @@ func TestVerifyData(t *testing.T) {
 	// Modulo-cycle through prefixes to re-create ORDER BY issue
 	textPKeyPrefixes := []string{"A", "AA", "a", "aa", "A-A", "a-a"}
 
-	for rowID := 0; rowID < rowCount; rowID++ {
+	for rowID := range rowCount {
 		textPKeyPrefix := textPKeyPrefixes[rowID%len(textPKeyPrefixes)]
 		valueClause := fmt.Sprintf("( %d, 0, '%s-%d'", rowID, textPKeyPrefix, rowID)
 
@@ -352,7 +352,7 @@ func TestVerifyDataFail(t *testing.T) {
 	}
 
 	// Arrange
-	ctx := context.Background()
+	ctx := t.Context()
 
 	dbs := []struct {
 		image        string
@@ -366,9 +366,9 @@ func TestVerifyDataFail(t *testing.T) {
 			image: "postgres:12.11",
 			cmd:   []string{"postgres"},
 			env: []string{
-				fmt.Sprintf("POSTGRES_DB=%s", dbName),
-				fmt.Sprintf("POSTGRES_USER=%s", dbUser),
-				fmt.Sprintf("POSTGRES_PASSWORD=%s", dbPassword),
+				"POSTGRES_DB=" + dbName,
+				"POSTGRES_USER=" + dbUser,
+				"POSTGRES_PASSWORD=" + dbPassword,
 			},
 			port:         5432,
 			userPassword: dbUser + ":" + dbPassword,
@@ -431,7 +431,6 @@ func TestVerifyDataFail(t *testing.T) {
 		pgverify.TestModeBookend,
 		pgverify.TestModeRowCount,
 	} {
-		test := test
 		t.Run(test+"/AllSameRowsPass", func(t *testing.T) {
 			results, err := pgverify.Verify(
 				ctx,
@@ -461,7 +460,6 @@ func TestVerifyDataFail(t *testing.T) {
 		pgverify.TestModeBookend,
 		pgverify.TestModeRowCount,
 	} {
-		test := test
 		t.Run(test+"/FailAfterInsert", func(t *testing.T) {
 			results, err := pgverify.Verify(
 				ctx,

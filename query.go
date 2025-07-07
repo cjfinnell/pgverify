@@ -24,7 +24,7 @@ func buildGetTablesQuery(includeSchemas, excludeSchemas, includeTables, excludeT
 
 	if len(includeSchemas) > 0 {
 		whereClause := "table_schema IN ("
-		for i := 0; i < len(includeSchemas); i++ {
+		for i := range includeSchemas {
 			whereClause += fmt.Sprintf("'%s'", includeSchemas[i])
 			if i < len(includeSchemas)-1 {
 				whereClause += ", "
@@ -36,19 +36,20 @@ func buildGetTablesQuery(includeSchemas, excludeSchemas, includeTables, excludeT
 		whereClauses = append(whereClauses, whereClause)
 	} else if len(excludeSchemas) > 0 {
 		whereClause := "table_schema NOT IN ("
-		for i := 0; i < len(excludeSchemas); i++ {
+		for i := range excludeSchemas {
 			whereClause += fmt.Sprintf("'%s'", excludeSchemas[i])
 			if i < len(excludeSchemas)-1 {
 				whereClause += ", "
 			}
 		}
+
 		whereClause += ")"
 		whereClauses = append(whereClauses, whereClause)
 	}
 
 	if len(includeTables) > 0 {
 		whereClause := "table_name IN ("
-		for i := 0; i < len(includeTables); i++ {
+		for i := range includeTables {
 			whereClause += fmt.Sprintf("'%s'", includeTables[i])
 			if i < len(includeTables)-1 {
 				whereClause += ", "
@@ -60,12 +61,13 @@ func buildGetTablesQuery(includeSchemas, excludeSchemas, includeTables, excludeT
 		whereClauses = append(whereClauses, whereClause)
 	} else if len(excludeTables) > 0 {
 		whereClause := "table_name NOT IN ("
-		for i := 0; i < len(excludeTables); i++ {
+		for i := range excludeTables {
 			whereClause += fmt.Sprintf("'%s'", excludeTables[i])
 			if i < len(excludeTables)-1 {
 				whereClause += ", "
 			}
 		}
+
 		whereClause += ")"
 		whereClauses = append(whereClauses, whereClause)
 	}

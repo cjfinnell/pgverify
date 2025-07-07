@@ -145,7 +145,7 @@ func (r Results) WriteAsTable(writer io.Writer) {
 	}
 
 	sort.Slice(rows, func(i, j int) bool {
-		for k := 0; k < len(header); k++ {
+		for k := range header {
 			if rows[i][k] != rows[j][k] {
 				return rows[i][k] < rows[j][k]
 			}

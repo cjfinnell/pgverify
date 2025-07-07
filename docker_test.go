@@ -2,6 +2,7 @@ package pgverify_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -60,7 +61,7 @@ func getFreePort() (int, error) {
 
 	asTCPAddr, ok := l.Addr().(*net.TCPAddr)
 	if !ok {
-		return 0, fmt.Errorf("unable assert net.Addr as net.TCPAddr")
+		return 0, errors.New("unable assert net.Addr as net.TCPAddr")
 	}
 
 	return asTCPAddr.Port, nil
