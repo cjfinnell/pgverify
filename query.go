@@ -20,7 +20,7 @@ func formatQuery(query string) string {
 // SQL 'WHERE' clause. Exclusions override inclusions.
 func buildGetTablesQuery(includeSchemas, excludeSchemas, includeTables, excludeTables []string) string {
 	query := "SELECT table_schema, table_name FROM information_schema.tables"
-	whereClauses := []string{}
+	whereClauses := []string{"table_type != 'VIEW'"}
 
 	if len(includeSchemas) > 0 {
 		whereClause := "table_schema IN ("
@@ -91,7 +91,7 @@ func buildGetColumsQuery(schemaName, tableName string) string {
 			LEFT OUTER JOIN information_schema.table_constraints as tc ON (
 				k.constraint_name = tc.constraint_name
 			)
-		WHERE c.table_name = '%s' AND c.table_schema = '%s'
+		WHERE c.table_name = '%s' AND c.table_schema = '%s' AND c.is_generated != 'ALWAYS'
 		`, tableName, schemaName))
 }
 
@@ -116,11 +116,23 @@ func buildFullHashQuery(config Config, schemaName, tableName string, columns []c
 
 	primaryColumnString := strings.Join(primaryKeyNamesWithCasting, ", ")
 
+	primaryColumnConcatString := fmt.Sprintf("CONCAT(%s)", primaryColumnString)
+
+	if config.HashPrimaryKeys {
+		primaryColumnConcatString = fmt.Sprintf("MD5(%s)", primaryColumnConcatString)
+	}
+
 	return formatQuery(fmt.Sprintf(`
 		SELECT md5(string_agg(hash, ''))
-		FROM (SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash, CONCAT(%s) as primary_key FROM "%s"."%s") AS eachrow
-		GROUP BY grouper, primary_key ORDER BY primary_key
-		`, strings.Join(columnsWithCasting, ", "), primaryColumnString, schemaName, tableName))
+		FROM (
+			SELECT MD5(CONCAT(%s)) AS hash
+			FROM "%s"."%s"
+			ORDER BY %s
+		) as eachhash
+		`, strings.Join(columnsWithCasting, ", "),
+		schemaName, tableName,
+		primaryColumnConcatString,
+	))
 }
 
 // Similar to the full test query, this test differs by first selecting a subset
@@ -172,20 +184,26 @@ func buildSparseHashQuery(config Config, schemaName, tableName string, columns [
 
 	primaryColumnString := strings.Join(primaryKeyNamesWithCasting, ", ")
 
+	primaryColumnConcatString := fmt.Sprintf("CONCAT(%s)", primaryColumnString)
+
+	if config.HashPrimaryKeys {
+		primaryColumnConcatString = fmt.Sprintf("MD5(%s)", primaryColumnConcatString)
+	}
+
 	return formatQuery(fmt.Sprintf(`
 		SELECT md5(string_agg(hash, ''))
 		FROM (
-			SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash, CONCAT(%s) as primary_key
+			SELECT MD5(CONCAT(%s)) AS hash
 			FROM "%s"."%s"
 			WHERE %s
-			ORDER BY CONCAT(%s)
+			ORDER BY %s
 		) AS eachrow
-		GROUP BY grouper, primary_key
-		ORDER BY primary_key
 		`,
-		strings.Join(columnsWithCasting, ", "), primaryColumnString,
-		schemaName, tableName, whenClausesString,
-		primaryKeyNamesWithCastingString))
+		strings.Join(columnsWithCasting, ", "),
+		schemaName, tableName,
+		whenClausesString,
+		primaryColumnConcatString,
+	))
 }
 
 // Like the full test query, but only looks at the first and last N rows for generating hashes.
@@ -209,28 +227,32 @@ func buildBookendHashQuery(config Config, schemaName, tableName string, columns 
 	allColumnsWithCasting := strings.Join(columnsWithCasting, ", ")
 	allPrimaryColumnsWithCasting := strings.Join(primaryKeyNamesWithCasting, ", ")
 
+	allPrimaryColumnsConcatString := fmt.Sprintf("CONCAT(%s)", allPrimaryColumnsWithCasting)
+
+	if config.HashPrimaryKeys {
+		allPrimaryColumnsConcatString = fmt.Sprintf("MD5(%s)", allPrimaryColumnsConcatString)
+	}
+
 	return formatQuery(fmt.Sprintf(`
 			SELECT md5(CONCAT(starthash::TEXT, endhash::TEXT))
 			FROM (
 				SELECT md5(string_agg(hash, ''))
 				FROM (
-					SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash
+					SELECT MD5(CONCAT(%s)) AS hash
 					FROM "%s"."%s"
-					ORDER BY CONCAT(%s) ASC
+					ORDER BY %s ASC
 					LIMIT %d
 				) AS eachrow
-				GROUP BY grouper
 			) as starthash, (
 				SELECT md5(string_agg(hash, ''))
 				FROM (
-					SELECT '' AS grouper, MD5(CONCAT(%s)) AS hash
+					SELECT MD5(CONCAT(%s)) AS hash
 					FROM "%s"."%s"
-					ORDER BY CONCAT(%s) DESC
+					ORDER BY %s DESC
 					LIMIT %d
 				) AS eachrow
-				GROUP BY grouper
 			) as endhash
-			`, allColumnsWithCasting, schemaName, tableName, allPrimaryColumnsWithCasting, limit, allColumnsWithCasting, schemaName, tableName, allPrimaryColumnsWithCasting, limit))
+			`, allColumnsWithCasting, schemaName, tableName, allPrimaryColumnsConcatString, limit, allColumnsWithCasting, schemaName, tableName, allPrimaryColumnsConcatString, limit))
 }
 
 // A minimal test that simply counts the number of rows.

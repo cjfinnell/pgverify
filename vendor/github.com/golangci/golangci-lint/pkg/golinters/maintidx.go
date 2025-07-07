@@ -11,12 +11,12 @@ import (
 func NewMaintIdx(cfg *config.MaintIdxSettings) *goanalysis.Linter {
 	analyzer := maintidx.Analyzer
 
-	cfgMap := map[string]map[string]interface{}{
+	cfgMap := map[string]map[string]any{
 		analyzer.Name: {"under": 20},
 	}
 
 	if cfg != nil {
-		cfgMap[analyzer.Name] = map[string]interface{}{
+		cfgMap[analyzer.Name] = map[string]any{
 			"under": cfg.Under,
 		}
 	}
@@ -24,9 +24,7 @@ func NewMaintIdx(cfg *config.MaintIdxSettings) *goanalysis.Linter {
 	return goanalysis.NewLinter(
 		analyzer.Name,
 		analyzer.Doc,
-		[]*analysis.Analyzer{
-			analyzer,
-		},
+		[]*analysis.Analyzer{analyzer},
 		cfgMap,
 	).WithLoadMode(goanalysis.LoadModeSyntax)
 }

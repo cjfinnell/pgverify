@@ -10,7 +10,7 @@ import (
 type DotImportsRule struct{}
 
 // Apply applies the rule to given file.
-func (r *DotImportsRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
+func (*DotImportsRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure {
 	var failures []lint.Failure
 
 	fileAst := file.AST
@@ -28,7 +28,7 @@ func (r *DotImportsRule) Apply(file *lint.File, _ lint.Arguments) []lint.Failure
 }
 
 // Name returns the rule name.
-func (r *DotImportsRule) Name() string {
+func (*DotImportsRule) Name() string {
 	return "dot-imports"
 }
 
@@ -39,9 +39,8 @@ type lintImports struct {
 }
 
 func (w lintImports) Visit(_ ast.Node) ast.Visitor {
-	for i, is := range w.fileAst.Imports {
-		_ = i
-		if is.Name != nil && is.Name.Name == "." && !w.file.IsTest() {
+	for _, is := range w.fileAst.Imports {
+		if is.Name != nil && is.Name.Name == "." {
 			w.onFailure(lint.Failure{
 				Confidence: 1,
 				Failure:    "should not use dot imports",

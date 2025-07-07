@@ -22,7 +22,7 @@ unit-test:
 
 .PHONY: test
 test:
-	go test -v -cover -coverprofile coverage.txt -covermode=atomic ./...
+	go test -v -cover -coverprofile coverage.txt -covermode=atomic -race ./...
 
 
 ################################################################################
