@@ -58,7 +58,25 @@ func init() {
 	// List standard library functions here.
 	// The context.With{Cancel,Deadline,Timeout} entries are
 	// effectively redundant wrt the lostcancel analyzer.
-	funcs.Set("errors.New,fmt.Errorf,fmt.Sprintf,fmt.Sprint,sort.Reverse,context.WithValue,context.WithCancel,context.WithDeadline,context.WithTimeout")
+	funcs = stringSetFlag{
+		"context.WithCancel":   true,
+		"context.WithDeadline": true,
+		"context.WithTimeout":  true,
+		"context.WithValue":    true,
+		"errors.New":           true,
+		"fmt.Errorf":           true,
+		"fmt.Sprint":           true,
+		"fmt.Sprintf":          true,
+		"slices.Clip":          true,
+		"slices.Compact":       true,
+		"slices.CompactFunc":   true,
+		"slices.Delete":        true,
+		"slices.DeleteFunc":    true,
+		"slices.Grow":          true,
+		"slices.Insert":        true,
+		"slices.Replace":       true,
+		"sort.Reverse":         true,
+	}
 	Analyzer.Flags.Var(&funcs, "funcs",
 		"comma-separated list of functions whose results must be used")
 
@@ -67,7 +85,7 @@ func init() {
 		"comma-separated list of names of methods of type func() string whose results must be used")
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	// Split functions into (pkg, name) pairs to save allocation later.
@@ -82,7 +100,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		(*ast.ExprStmt)(nil),
 	}
 	inspect.Preorder(nodeFilter, func(n ast.Node) {
-		call, ok := analysisutil.Unparen(n.(*ast.ExprStmt).X).(*ast.CallExpr)
+		call, ok := ast.Unparen(n.(*ast.ExprStmt).X).(*ast.CallExpr)
 		if !ok {
 			return // not a call statement
 		}
@@ -92,7 +110,6 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		if !ok {
 			return // e.g. var or builtin
 		}
-
 		if sig := fn.Type().(*types.Signature); sig.Recv() != nil {
 			// method (e.g. foo.String())
 			if types.Identical(sig, sigNoArgsStringResult) {
@@ -113,9 +130,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 }
 
 // func() string
-var sigNoArgsStringResult = types.NewSignature(nil, nil,
-	types.NewTuple(types.NewVar(token.NoPos, nil, "", types.Typ[types.String])),
-	false)
+var sigNoArgsStringResult = types.NewSignatureType(nil, nil, nil, nil, types.NewTuple(types.NewParam(token.NoPos, nil, "", types.Typ[types.String])), false)
 
 type stringSetFlag map[string]bool
 

@@ -16,6 +16,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/cfg"
+	"golang.org/x/tools/internal/analysisinternal"
 )
 
 //go:embed doc.go
@@ -46,9 +47,9 @@ var contextPackage = "context"
 // containing the assignment, we assume that other uses exist.
 //
 // checkLostCancel analyzes a single named or literal function.
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	// Fast path: bypass check if file doesn't use context.WithCancel.
-	if !analysisutil.Imports(pass.Pkg, contextPackage) {
+	if !analysisinternal.Imports(pass.Pkg, contextPackage) {
 		return nil, nil
 	}
 
@@ -172,7 +173,18 @@ func runFunc(pass *analysis.Pass, node ast.Node) {
 		if ret := lostCancelPath(pass, g, v, stmt, sig); ret != nil {
 			lineno := pass.Fset.Position(stmt.Pos()).Line
 			pass.ReportRangef(stmt, "the %s function is not used on all paths (possible context leak)", v.Name())
-			pass.ReportRangef(ret, "this return statement may be reached without using the %s var defined on line %d", v.Name(), lineno)
+
+			pos, end := ret.Pos(), ret.End()
+			// golang/go#64547: cfg.Block.Return may return a synthetic
+			// ReturnStmt that overflows the file.
+			if pass.Fset.File(pos) != pass.Fset.File(end) {
+				end = pos
+			}
+			pass.Report(analysis.Diagnostic{
+				Pos:     pos,
+				End:     end,
+				Message: fmt.Sprintf("this return statement may be reached without using the %s var defined on line %d", v.Name(), lineno),
+			})
 		}
 	}
 }
@@ -187,7 +199,9 @@ func isContextWithCancel(info *types.Info, n ast.Node) bool {
 		return false
 	}
 	switch sel.Sel.Name {
-	case "WithCancel", "WithTimeout", "WithDeadline":
+	case "WithCancel", "WithCancelCause",
+		"WithTimeout", "WithTimeoutCause",
+		"WithDeadline", "WithDeadlineCause":
 	default:
 		return false
 	}

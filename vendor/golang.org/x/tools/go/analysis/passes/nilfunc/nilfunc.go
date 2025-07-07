@@ -30,7 +30,7 @@ var Analyzer = &analysis.Analyzer{
 	Run:      run,
 }
 
-func run(pass *analysis.Pass) (interface{}, error) {
+func run(pass *analysis.Pass) (any, error) {
 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 
 	nodeFilter := []ast.Node{
@@ -62,7 +62,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			obj = pass.TypesInfo.Uses[v]
 		case *ast.SelectorExpr:
 			obj = pass.TypesInfo.Uses[v.Sel]
-		case *ast.IndexExpr, *typeparams.IndexListExpr:
+		case *ast.IndexExpr, *ast.IndexListExpr:
 			// Check generic functions such as "f[T1,T2]".
 			x, _, _, _ := typeparams.UnpackIndexExpr(v)
 			if id, ok := x.(*ast.Ident); ok {
