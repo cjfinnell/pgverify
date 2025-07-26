@@ -26,7 +26,7 @@ jobs:
           name: Run tests
           command: make test
       - codecov/upload:
-          file: coverage.txt
+          files: coverage.txt
 
 workflows:
   version: 2
