@@ -23,12 +23,6 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
-var (
-	dbUser     = "test"
-	dbPassword = "test"
-	dbName     = "test"
-)
-
 func waitForDBReady(t *testing.T, ctx context.Context, config *pgx.ConnConfig) bool {
 	t.Helper()
 
@@ -53,28 +47,25 @@ func waitForDBReady(t *testing.T, ctx context.Context, config *pgx.ConnConfig) b
 func createContainer(t *testing.T, ctx context.Context, image string) (*pgx.ConnConfig, error) {
 	t.Helper()
 
-	if strings.HasPrefix(image, "cockroach") {
-		cockroachdbContainer, err := cockroachdb.Run(ctx, image)
+	switch {
+	case strings.HasPrefix(image, "cockroach"):
+		cockroachdbContainer, err := cockroachdb.Run(ctx, image, cockroachdb.WithInsecure())
 		require.NoError(t, err)
-
-		t.Cleanup(func() { testcontainers.TerminateContainer(cockroachdbContainer) })
+		t.Cleanup(func() { require.NoError(t, testcontainers.TerminateContainer(cockroachdbContainer)) })
 
 		return cockroachdbContainer.ConnectionConfig(ctx)
-	}
-
-	if strings.HasPrefix(image, "postgres") {
+	case strings.HasPrefix(image, "postgres"):
 		postgresContainer, err := postgres.Run(ctx, image)
 		require.NoError(t, err)
-
-		t.Cleanup(func() { testcontainers.TerminateContainer(postgresContainer) })
+		t.Cleanup(func() { require.NoError(t, testcontainers.TerminateContainer(postgresContainer)) })
 
 		connString, err := postgresContainer.ConnectionString(ctx)
 		require.NoError(t, err)
 
 		return pgx.ParseConfig(connString)
+	default:
+		return nil, errors.New("not implemented")
 	}
-
-	return nil, errors.New("not implemented")
 }
 
 func calculateRowCount(columnTypes map[string][]string) int {
@@ -88,95 +79,29 @@ func calculateRowCount(columnTypes map[string][]string) int {
 	return rowCount
 }
 
-//nolint:maintidx
 func TestVerifyData(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
 
 	// Arrange
-	ctx := context.Background()
+	ctx := t.Context()
 
-	dbs := []struct {
-		image        string
-		cmd          []string
-		env          []string
-		port         int
-		userPassword string
-		db           string
-	}{
-		{
-			image: "postgres:10",
-			cmd:   []string{"postgres"},
-			env: []string{
-				"POSTGRES_DB=" + dbName,
-				"POSTGRES_USER=" + dbUser,
-				"POSTGRES_PASSWORD=" + dbPassword,
-			},
-			port:         5432,
-			userPassword: dbUser + ":" + dbPassword,
-			db:           "/" + dbName,
-		},
-		{
-			image: "postgres:11",
-			cmd:   []string{"postgres"},
-			env: []string{
-				"POSTGRES_DB=" + dbName,
-				"POSTGRES_USER=" + dbUser,
-				"POSTGRES_PASSWORD=" + dbPassword,
-			},
-			port:         5432,
-			userPassword: dbUser + ":" + dbPassword,
-			db:           "/" + dbName,
-		},
-		{
-			image: "postgres:12.6",
-			cmd:   []string{"postgres"},
-			env: []string{
-				"POSTGRES_DB=" + dbName,
-				"POSTGRES_USER=" + dbUser,
-				"POSTGRES_PASSWORD=" + dbPassword,
-			},
-			port:         5432,
-			userPassword: dbUser + ":" + dbPassword,
-			db:           "/" + dbName,
-		},
-		{
-			image: "postgres:12.11",
-			cmd:   []string{"postgres"},
-			env: []string{
-				"POSTGRES_DB=" + dbName,
-				"POSTGRES_USER=" + dbUser,
-				"POSTGRES_PASSWORD=" + dbPassword,
-			},
-			port:         5432,
-			userPassword: dbUser + ":" + dbPassword,
-			db:           "/" + dbName,
-		},
-		{
-			image:        "cockroachdb/cockroach:v21.2.0",
-			cmd:          []string{"start-single-node", "--insecure"},
-			port:         26257,
-			userPassword: "root",
-		},
-		{
-			image:        "cockroachdb/cockroach:v21.2.12",
-			cmd:          []string{"start-single-node", "--insecure"},
-			port:         26257,
-			userPassword: "root",
-		},
-		{
-			image:        "cockroachdb/cockroach:v22.2.3",
-			cmd:          []string{"start-single-node", "--insecure"},
-			port:         26257,
-			userPassword: "root",
-		},
-		{
-			image:        "cockroachdb/cockroach:latest", // cockroach cloud
-			cmd:          []string{"start-single-node", "--insecure"},
-			port:         26257,
-			userPassword: "root",
-		},
+	dbs := []string{
+		"postgres:10",
+		"postgres:11",
+		"postgres:12",
+		"postgres:13",
+		"postgres:14",
+		"postgres:15",
+		"postgres:16",
+		"postgres:17",
+		"postgres:latest",
+		"cockroachdb/cockroach:latest-v22.2",
+		"cockroachdb/cockroach:latest-v23.2",
+		"cockroachdb/cockroach:latest-v24.3",
+		"cockroachdb/cockroach:latest-v25.2",
+		"cockroachdb/cockroach:latest", // cockroach cloud
 	}
 
 	columnTypes := map[string][]string{
@@ -253,10 +178,10 @@ func TestVerifyData(t *testing.T) {
 
 	var aliases []string
 
-	for _, db := range dbs {
-		aliases = append(aliases, db.image)
+	for _, dbImage := range dbs {
+		aliases = append(aliases, dbImage)
 		// Create db and connect
-		config, err := createContainer(t, ctx, db.image)
+		config, err := createContainer(t, ctx, dbImage)
 		require.NoError(t, err)
 		assert.True(t, waitForDBReady(t, ctx, config))
 		conn, err := pgx.ConnectConfig(ctx, config)
@@ -280,7 +205,7 @@ func TestVerifyData(t *testing.T) {
 
 			createTableQuery := fmt.Sprintf(`CREATE TABLE "%s" %s`, tableName, createTableQueryBase)
 			_, err = conn.Exec(ctx, createTableQuery)
-			require.NoError(t, err, "Failed to create table %s on %v with query: %s", tableName, db.image, createTableQuery)
+			require.NoError(t, err, "Failed to create table %s on %v with query: %s", tableName, dbImage, createTableQuery)
 
 			var pkeyString string
 
@@ -297,12 +222,12 @@ func TestVerifyData(t *testing.T) {
 
 			alterTableQuery := fmt.Sprintf(`ALTER TABLE ONLY "%s" ADD CONSTRAINT %s;`, tableName, pkeyString)
 			_, err = conn.Exec(ctx, alterTableQuery)
-			require.NoError(t, err, "Failed to add primary key to table %s on %v with query %s", tableName, db.image, alterTableQuery)
+			require.NoError(t, err, "Failed to add primary key to table %s on %v with query %s", tableName, dbImage, alterTableQuery)
 
 			rand.Shuffle(len(valueClauses), func(i, j int) { valueClauses[i], valueClauses[j] = valueClauses[j], valueClauses[i] })
 			insertDataQuery := fmt.Sprintf(`INSERT INTO "%s" %s %s`, tableName, insertDataQueryBase, strings.Join(valueClauses, ", "))
 			_, err = conn.Exec(ctx, insertDataQuery)
-			require.NoError(t, err, "Failed to insert data to table on %v with query %s", tableName, db.image, insertDataQuery)
+			require.NoError(t, err, "Failed to insert data to table on %v with query %s", tableName, dbImage, insertDataQuery)
 		}
 
 		targets = append(targets, config)
@@ -337,34 +262,11 @@ func TestVerifyDataFail(t *testing.T) {
 	}
 
 	// Arrange
-	ctx := context.Background()
+	ctx := t.Context()
 
-	dbs := []struct {
-		image        string
-		cmd          []string
-		env          []string
-		port         int
-		userPassword string
-		db           string
-	}{
-		{
-			image: "postgres:12.11",
-			cmd:   []string{"postgres"},
-			env: []string{
-				"POSTGRES_DB=" + dbName,
-				"POSTGRES_USER=" + dbUser,
-				"POSTGRES_PASSWORD=" + dbPassword,
-			},
-			port:         5432,
-			userPassword: dbUser + ":" + dbPassword,
-			db:           "/" + dbName,
-		},
-		{
-			image:        "cockroachdb/cockroach:latest", // cockroach cloud
-			cmd:          []string{"start-single-node", "--insecure"},
-			port:         26257,
-			userPassword: "root",
-		},
+	dbs := []string{
+		"postgres:latest",
+		"cockroachdb/cockroach:latest", // cockroach cloud
 	}
 
 	// Act
@@ -374,15 +276,15 @@ func TestVerifyDataFail(t *testing.T) {
 
 	var conns []*pgx.Conn
 
-	for _, db := range dbs {
+	for _, dbImage := range dbs {
 		// Create db and connect
-		config, err := createContainer(t, ctx, db.image)
+		config, err := createContainer(t, ctx, dbImage)
 		require.NoError(t, err)
 		assert.True(t, waitForDBReady(t, ctx, config))
 		conn, err := pgx.ConnectConfig(ctx, config)
 		require.NoError(t, err)
 
-		aliases = append(aliases, db.image)
+		aliases = append(aliases, dbImage)
 		conns = append(conns, conn)
 		targets = append(targets, config)
 
