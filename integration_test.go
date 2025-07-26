@@ -18,6 +18,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/cockroachdb"
 )
 
 var (
@@ -47,10 +49,19 @@ func waitForDBReady(t *testing.T, ctx context.Context, config *pgx.ConnConfig) b
 	return connected
 }
 
-func createContainer(t *testing.T, ctx context.Context, image string, port int, env, cmd []string) (int, error) {
+func createContainer(t *testing.T, ctx context.Context, image string) (*pgx.ConnConfig, error) {
 	t.Helper()
 
-	return 0, errors.New("not implemented")
+	if strings.HasPrefix(image, "cockroach") {
+		cockroachdbContainer, err := cockroachdb.Run(ctx, image)
+		require.NoError(t, err)
+
+		t.Cleanup(func() { testcontainers.TerminateContainer(cockroachdbContainer) })
+
+		return cockroachdbContainer.ConnectionConfig(ctx)
+	}
+
+	return nil, errors.New("not implemented")
 }
 
 func calculateRowCount(columnTypes map[string][]string) int {
@@ -232,9 +243,7 @@ func TestVerifyData(t *testing.T) {
 	for _, db := range dbs {
 		aliases = append(aliases, db.image)
 		// Create db and connect
-		port, err := createContainer(t, ctx, db.image, db.port, db.env, db.cmd)
-		require.NoError(t, err)
-		config, err := pgx.ParseConfig(fmt.Sprintf("postgresql://%s@127.0.0.1:%d%s", db.userPassword, port, db.db))
+		config, err := createContainer(t, ctx, db.image)
 		require.NoError(t, err)
 		assert.True(t, waitForDBReady(t, ctx, config))
 		conn, err := pgx.ConnectConfig(ctx, config)
@@ -354,9 +363,7 @@ func TestVerifyDataFail(t *testing.T) {
 
 	for _, db := range dbs {
 		// Create db and connect
-		port, err := createContainer(t, ctx, db.image, db.port, db.env, db.cmd)
-		require.NoError(t, err)
-		config, err := pgx.ParseConfig(fmt.Sprintf("postgresql://%s@127.0.0.1:%d%s", db.userPassword, port, db.db))
+		config, err := createContainer(t, ctx, db.image)
 		require.NoError(t, err)
 		assert.True(t, waitForDBReady(t, ctx, config))
 		conn, err := pgx.ConnectConfig(ctx, config)
