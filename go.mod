@@ -14,7 +14,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/cockroachdb v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.38.0
-	go.uber.org/multierr v1.6.0
+	go.uber.org/multierr v1.11.0
 )
 
 require (
