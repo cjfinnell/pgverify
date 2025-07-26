@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -51,42 +50,7 @@ func waitForDBReady(t *testing.T, ctx context.Context, config *pgx.ConnConfig) b
 func createContainer(t *testing.T, ctx context.Context, image string, port int, env, cmd []string) (int, error) {
 	t.Helper()
 
-	docker, err := newDockerClient()
-	if err != nil {
-		return 0, err
-	}
-
-	hostPort, err := getFreePort()
-	if err != nil {
-		return 0, errors.New("could not determine a free port")
-	}
-
-	container, err := docker.runContainer(
-		t,
-		ctx,
-		&containerConfig{
-			image: image,
-			ports: []*portMapping{
-				{
-					HostPort:      strconv.Itoa(hostPort),
-					ContainerPort: strconv.Itoa(port),
-				},
-			},
-			env: env,
-			cmd: cmd,
-		})
-	if err != nil {
-		return 0, err
-	}
-
-	t.Cleanup(func() {
-		err := docker.removeContainer(t, ctx, container.ID)
-		if err != nil {
-			t.Errorf("Could not remove container %s: %v", container.ID, err)
-		}
-	})
-
-	return hostPort, nil
+	return 0, errors.New("not implemented")
 }
 
 func calculateRowCount(columnTypes map[string][]string) int {
