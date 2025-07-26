@@ -8,23 +8,19 @@ import (
 	"math/rand"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/cjfinnell/pgverify"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-)
-
-var (
-	dbUser     = "test"
-	dbPassword = "test"
-	dbName     = "test"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/cockroachdb"
+	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
 func waitForDBReady(t *testing.T, ctx context.Context, config *pgx.ConnConfig) bool {
@@ -48,45 +44,28 @@ func waitForDBReady(t *testing.T, ctx context.Context, config *pgx.ConnConfig) b
 	return connected
 }
 
-func createContainer(t *testing.T, ctx context.Context, image string, port int, env, cmd []string) (int, error) {
+func createContainer(t *testing.T, ctx context.Context, image string) (*pgx.ConnConfig, error) {
 	t.Helper()
 
-	docker, err := newDockerClient()
-	if err != nil {
-		return 0, err
+	switch {
+	case strings.HasPrefix(image, "cockroach"):
+		cockroachdbContainer, err := cockroachdb.Run(ctx, image, cockroachdb.WithInsecure())
+		require.NoError(t, err)
+		t.Cleanup(func() { require.NoError(t, testcontainers.TerminateContainer(cockroachdbContainer)) })
+
+		return cockroachdbContainer.ConnectionConfig(ctx)
+	case strings.HasPrefix(image, "postgres"):
+		postgresContainer, err := postgres.Run(ctx, image)
+		require.NoError(t, err)
+		t.Cleanup(func() { require.NoError(t, testcontainers.TerminateContainer(postgresContainer)) })
+
+		connString, err := postgresContainer.ConnectionString(ctx)
+		require.NoError(t, err)
+
+		return pgx.ParseConfig(connString)
+	default:
+		return nil, errors.New("not implemented")
 	}
-
-	hostPort, err := getFreePort()
-	if err != nil {
-		return 0, errors.New("could not determine a free port")
-	}
-
-	container, err := docker.runContainer(
-		t,
-		ctx,
-		&containerConfig{
-			image: image,
-			ports: []*portMapping{
-				{
-					HostPort:      strconv.Itoa(hostPort),
-					ContainerPort: strconv.Itoa(port),
-				},
-			},
-			env: env,
-			cmd: cmd,
-		})
-	if err != nil {
-		return 0, err
-	}
-
-	t.Cleanup(func() {
-		err := docker.removeContainer(t, ctx, container.ID)
-		if err != nil {
-			t.Errorf("Could not remove container %s: %v", container.ID, err)
-		}
-	})
-
-	return hostPort, nil
 }
 
 func calculateRowCount(columnTypes map[string][]string) int {
@@ -100,95 +79,29 @@ func calculateRowCount(columnTypes map[string][]string) int {
 	return rowCount
 }
 
-//nolint:maintidx
 func TestVerifyData(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
 
 	// Arrange
-	ctx := context.Background()
+	ctx := t.Context()
 
-	dbs := []struct {
-		image        string
-		cmd          []string
-		env          []string
-		port         int
-		userPassword string
-		db           string
-	}{
-		{
-			image: "postgres:10",
-			cmd:   []string{"postgres"},
-			env: []string{
-				"POSTGRES_DB=" + dbName,
-				"POSTGRES_USER=" + dbUser,
-				"POSTGRES_PASSWORD=" + dbPassword,
-			},
-			port:         5432,
-			userPassword: dbUser + ":" + dbPassword,
-			db:           "/" + dbName,
-		},
-		{
-			image: "postgres:11",
-			cmd:   []string{"postgres"},
-			env: []string{
-				"POSTGRES_DB=" + dbName,
-				"POSTGRES_USER=" + dbUser,
-				"POSTGRES_PASSWORD=" + dbPassword,
-			},
-			port:         5432,
-			userPassword: dbUser + ":" + dbPassword,
-			db:           "/" + dbName,
-		},
-		{
-			image: "postgres:12.6",
-			cmd:   []string{"postgres"},
-			env: []string{
-				"POSTGRES_DB=" + dbName,
-				"POSTGRES_USER=" + dbUser,
-				"POSTGRES_PASSWORD=" + dbPassword,
-			},
-			port:         5432,
-			userPassword: dbUser + ":" + dbPassword,
-			db:           "/" + dbName,
-		},
-		{
-			image: "postgres:12.11",
-			cmd:   []string{"postgres"},
-			env: []string{
-				"POSTGRES_DB=" + dbName,
-				"POSTGRES_USER=" + dbUser,
-				"POSTGRES_PASSWORD=" + dbPassword,
-			},
-			port:         5432,
-			userPassword: dbUser + ":" + dbPassword,
-			db:           "/" + dbName,
-		},
-		{
-			image:        "cockroachdb/cockroach:v21.2.0",
-			cmd:          []string{"start-single-node", "--insecure"},
-			port:         26257,
-			userPassword: "root",
-		},
-		{
-			image:        "cockroachdb/cockroach:v21.2.12",
-			cmd:          []string{"start-single-node", "--insecure"},
-			port:         26257,
-			userPassword: "root",
-		},
-		{
-			image:        "cockroachdb/cockroach:v22.2.3",
-			cmd:          []string{"start-single-node", "--insecure"},
-			port:         26257,
-			userPassword: "root",
-		},
-		{
-			image:        "cockroachdb/cockroach:latest", // cockroach cloud
-			cmd:          []string{"start-single-node", "--insecure"},
-			port:         26257,
-			userPassword: "root",
-		},
+	dbs := []string{
+		"postgres:10",
+		"postgres:11",
+		"postgres:12",
+		"postgres:13",
+		"postgres:14",
+		"postgres:15",
+		"postgres:16",
+		"postgres:17",
+		"postgres:latest",
+		"cockroachdb/cockroach:latest-v22.2",
+		"cockroachdb/cockroach:latest-v23.2",
+		"cockroachdb/cockroach:latest-v24.3",
+		"cockroachdb/cockroach:latest-v25.2",
+		"cockroachdb/cockroach:latest", // cockroach cloud
 	}
 
 	columnTypes := map[string][]string{
@@ -265,12 +178,10 @@ func TestVerifyData(t *testing.T) {
 
 	var aliases []string
 
-	for _, db := range dbs {
-		aliases = append(aliases, db.image)
+	for _, dbImage := range dbs {
+		aliases = append(aliases, dbImage)
 		// Create db and connect
-		port, err := createContainer(t, ctx, db.image, db.port, db.env, db.cmd)
-		require.NoError(t, err)
-		config, err := pgx.ParseConfig(fmt.Sprintf("postgresql://%s@127.0.0.1:%d%s", db.userPassword, port, db.db))
+		config, err := createContainer(t, ctx, dbImage)
 		require.NoError(t, err)
 		assert.True(t, waitForDBReady(t, ctx, config))
 		conn, err := pgx.ConnectConfig(ctx, config)
@@ -294,7 +205,7 @@ func TestVerifyData(t *testing.T) {
 
 			createTableQuery := fmt.Sprintf(`CREATE TABLE "%s" %s`, tableName, createTableQueryBase)
 			_, err = conn.Exec(ctx, createTableQuery)
-			require.NoError(t, err, "Failed to create table %s on %v with query: %s", tableName, db.image, createTableQuery)
+			require.NoError(t, err, "Failed to create table %s on %v with query: %s", tableName, dbImage, createTableQuery)
 
 			var pkeyString string
 
@@ -311,12 +222,12 @@ func TestVerifyData(t *testing.T) {
 
 			alterTableQuery := fmt.Sprintf(`ALTER TABLE ONLY "%s" ADD CONSTRAINT %s;`, tableName, pkeyString)
 			_, err = conn.Exec(ctx, alterTableQuery)
-			require.NoError(t, err, "Failed to add primary key to table %s on %v with query %s", tableName, db.image, alterTableQuery)
+			require.NoError(t, err, "Failed to add primary key to table %s on %v with query %s", tableName, dbImage, alterTableQuery)
 
 			rand.Shuffle(len(valueClauses), func(i, j int) { valueClauses[i], valueClauses[j] = valueClauses[j], valueClauses[i] })
 			insertDataQuery := fmt.Sprintf(`INSERT INTO "%s" %s %s`, tableName, insertDataQueryBase, strings.Join(valueClauses, ", "))
 			_, err = conn.Exec(ctx, insertDataQuery)
-			require.NoError(t, err, "Failed to insert data to table on %v with query %s", tableName, db.image, insertDataQuery)
+			require.NoError(t, err, "Failed to insert data to table on %v with query %s", tableName, dbImage, insertDataQuery)
 		}
 
 		targets = append(targets, config)
@@ -351,34 +262,11 @@ func TestVerifyDataFail(t *testing.T) {
 	}
 
 	// Arrange
-	ctx := context.Background()
+	ctx := t.Context()
 
-	dbs := []struct {
-		image        string
-		cmd          []string
-		env          []string
-		port         int
-		userPassword string
-		db           string
-	}{
-		{
-			image: "postgres:12.11",
-			cmd:   []string{"postgres"},
-			env: []string{
-				"POSTGRES_DB=" + dbName,
-				"POSTGRES_USER=" + dbUser,
-				"POSTGRES_PASSWORD=" + dbPassword,
-			},
-			port:         5432,
-			userPassword: dbUser + ":" + dbPassword,
-			db:           "/" + dbName,
-		},
-		{
-			image:        "cockroachdb/cockroach:latest", // cockroach cloud
-			cmd:          []string{"start-single-node", "--insecure"},
-			port:         26257,
-			userPassword: "root",
-		},
+	dbs := []string{
+		"postgres:latest",
+		"cockroachdb/cockroach:latest", // cockroach cloud
 	}
 
 	// Act
@@ -388,17 +276,15 @@ func TestVerifyDataFail(t *testing.T) {
 
 	var conns []*pgx.Conn
 
-	for _, db := range dbs {
+	for _, dbImage := range dbs {
 		// Create db and connect
-		port, err := createContainer(t, ctx, db.image, db.port, db.env, db.cmd)
-		require.NoError(t, err)
-		config, err := pgx.ParseConfig(fmt.Sprintf("postgresql://%s@127.0.0.1:%d%s", db.userPassword, port, db.db))
+		config, err := createContainer(t, ctx, dbImage)
 		require.NoError(t, err)
 		assert.True(t, waitForDBReady(t, ctx, config))
 		conn, err := pgx.ConnectConfig(ctx, config)
 		require.NoError(t, err)
 
-		aliases = append(aliases, db.image)
+		aliases = append(aliases, dbImage)
 		conns = append(conns, conn)
 		targets = append(targets, config)
 
