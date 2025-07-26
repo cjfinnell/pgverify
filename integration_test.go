@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/cockroachdb"
+	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
 var (
@@ -59,6 +60,18 @@ func createContainer(t *testing.T, ctx context.Context, image string) (*pgx.Conn
 		t.Cleanup(func() { testcontainers.TerminateContainer(cockroachdbContainer) })
 
 		return cockroachdbContainer.ConnectionConfig(ctx)
+	}
+
+	if strings.HasPrefix(image, "postgres") {
+		postgresContainer, err := postgres.Run(ctx, image)
+		require.NoError(t, err)
+
+		t.Cleanup(func() { testcontainers.TerminateContainer(postgresContainer) })
+
+		connString, err := postgresContainer.ConnectionString(ctx)
+		require.NoError(t, err)
+
+		return pgx.ParseConfig(connString)
 	}
 
 	return nil, errors.New("not implemented")

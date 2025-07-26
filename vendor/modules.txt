@@ -1032,6 +1032,9 @@ github.com/testcontainers/testcontainers-go/wait
 # github.com/testcontainers/testcontainers-go/modules/cockroachdb v0.38.0
 ## explicit; go 1.23.0
 github.com/testcontainers/testcontainers-go/modules/cockroachdb
+# github.com/testcontainers/testcontainers-go/modules/postgres v0.38.0
+## explicit; go 1.23.0
+github.com/testcontainers/testcontainers-go/modules/postgres
 # github.com/tetafro/godot v1.5.1
 ## explicit; go 1.22
 github.com/tetafro/godot
