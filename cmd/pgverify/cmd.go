@@ -3,7 +3,7 @@ package main
 import (
 	"strings"
 
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
