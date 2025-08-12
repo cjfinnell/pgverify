@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/tw"
 )
 
 const defaultErrorOutput = "(err)"
@@ -105,8 +106,12 @@ func (r *Results) WriteAsTable(writer io.Writer) {
 
 	header = append(header, r.testModes...)
 	header = append(header, "target")
-	output := tablewriter.NewWriter(writer)
-	output.SetHeader(header)
+	output := tablewriter.NewTable(
+		writer,
+		tablewriter.WithHeaderAutoFormat(tw.On),
+		tablewriter.WithRowMergeMode(tw.MergeVertical),
+	)
+	output.Header(header)
 
 	var rows [][]string
 
@@ -158,7 +163,5 @@ func (r *Results) WriteAsTable(writer io.Writer) {
 		output.Append(row)
 	}
 
-	output.SetAutoMergeCellsByColumnIndex([]int{0, 1})
-	output.SetAutoFormatHeaders(false)
 	output.Render()
 }
