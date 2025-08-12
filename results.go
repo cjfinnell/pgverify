@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/tw"
 )
 
 const defaultErrorOutput = "(err)"
@@ -98,15 +99,19 @@ func (r *Results) CheckForErrors() []error {
 }
 
 // WriteAsTable writes the results as a table to the given io.Writer.
-func (r *Results) WriteAsTable(writer io.Writer) {
+func (r *Results) WriteAsTable(writer io.Writer) error {
 	sort.Strings(r.testModes)
 
 	header := []string{"schema", "table"}
 
 	header = append(header, r.testModes...)
 	header = append(header, "target")
-	output := tablewriter.NewWriter(writer)
-	output.SetHeader(header)
+	output := tablewriter.NewTable(
+		writer,
+		tablewriter.WithHeaderAutoFormat(tw.On),
+		tablewriter.WithRowMergeMode(tw.MergeVertical),
+	)
+	output.Header(header)
 
 	var rows [][]string
 
@@ -155,10 +160,11 @@ func (r *Results) WriteAsTable(writer io.Writer) {
 	})
 
 	for _, row := range rows {
-		output.Append(row)
+		err := output.Append(row)
+		if err != nil {
+			return fmt.Errorf("failed to append row: %w", err)
+		}
 	}
 
-	output.SetAutoMergeCellsByColumnIndex([]int{0, 1})
-	output.SetAutoFormatHeaders(false)
-	output.Render()
+	return output.Render()
 }

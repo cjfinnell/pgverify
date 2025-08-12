@@ -253,7 +253,7 @@ func TestVerifyData(t *testing.T) {
 		pgverify.WithHashPrimaryKeys(),
 	)
 	require.NoError(t, err)
-	results.WriteAsTable(os.Stdout)
+	require.NoError(t, results.WriteAsTable(os.Stdout))
 }
 
 func TestVerifyDataFail(t *testing.T) {
@@ -327,7 +327,7 @@ func TestVerifyDataFail(t *testing.T) {
 				pgverify.IncludeSchemas("public"),
 				pgverify.WithAliases(aliases),
 			)
-			results.WriteAsTable(os.Stdout)
+			require.NoError(t, results.WriteAsTable(os.Stdout))
 			require.NoError(t, err)
 		})
 	}
@@ -356,7 +356,7 @@ func TestVerifyDataFail(t *testing.T) {
 				pgverify.IncludeSchemas("public"),
 				pgverify.WithAliases(aliases),
 			)
-			results.WriteAsTable(os.Stdout)
+			require.NoError(t, results.WriteAsTable(os.Stdout))
 			require.Error(t, err) // should fail
 		})
 	}
