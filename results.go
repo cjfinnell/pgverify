@@ -99,7 +99,7 @@ func (r *Results) CheckForErrors() []error {
 }
 
 // WriteAsTable writes the results as a table to the given io.Writer.
-func (r *Results) WriteAsTable(writer io.Writer) {
+func (r *Results) WriteAsTable(writer io.Writer) error {
 	sort.Strings(r.testModes)
 
 	header := []string{"schema", "table"}
@@ -160,8 +160,11 @@ func (r *Results) WriteAsTable(writer io.Writer) {
 	})
 
 	for _, row := range rows {
-		output.Append(row)
+		err := output.Append(row)
+		if err != nil {
+			return fmt.Errorf("failed to append row: %w", err)
+		}
 	}
 
-	output.Render()
+	return output.Render()
 }

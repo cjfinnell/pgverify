@@ -91,10 +91,13 @@ var rootCmd = &cobra.Command{
 		}
 
 		report, err := pgverify.Verify(cmd.Context(), targets, opts...)
-		report.WriteAsTable(cmd.OutOrStdout())
-
 		if err != nil {
-			logger.Fatal(err)
+			logger.Fatalf("error encountered during verification: %s", err)
+		}
+
+		err = report.WriteAsTable(cmd.OutOrStdout())
+		if err != nil {
+			logger.Fatalf("unable to write verification report: %s", err)
 		}
 	},
 }
