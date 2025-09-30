@@ -7,23 +7,26 @@ import (
 )
 
 const (
-	// A full test is the default test mode. It is the only test mode that checks all
-	// of the rows of a given table, guaranteeing equivalent values between targets.
+	// TestModeFull is a full test is the default test mode. It is the only test
+	// mode that checks all of the rows of a given table, guaranteeing equivalent
+	// values between targets.
 	TestModeFull = "full"
 
-	// The bookend test is similar to the full test mode, but it only checks a certain
-	// number of rows from the beginning and end of the table, sorted by primary key.
+	// TestModeBookend is a bookend test is similar to the full test mode, but it
+	// only checks a certain number of rows from the beginning and end of the table,
+	// sorted by primary key.
 	TestModeBookend = "bookend"
-	// The number of rows checked in the bookend test mode is configurable.
+	// TestModeBookendDefaultLimit is the number of rows checked in the bookend
+	// test mode is configurable.
 	TestModeBookendDefaultLimit = 1000
 
-	// A sparse test checks a deterministic subset of the rows in a table.
+	// TestModeSparse is a sparse test checks a deterministic subset of the rows in a table.
 	TestModeSparse = "sparse"
-	// The number of rows checked in the sparse test mode is configurable,
-	// equalling approximately 1/mod of the total.
+	// TestModeSparseDefaultMod is the number of rows checked in the sparse test
+	// mode is configurable, equalling approximately 1/mod of the total.
 	TestModeSparseDefaultMod = 10
 
-	// A rowcount test simply compares table row counts between targets.
+	// TestModeRowCount is a rowcount test simply compares table row counts between targets.
 	TestModeRowCount = "rowcount"
 
 	TimestampPrecisionMilliseconds = "milliseconds"
