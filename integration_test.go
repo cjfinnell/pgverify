@@ -164,9 +164,12 @@ func TestVerifyData(t *testing.T) {
 		textPKeyPrefix := textPKeyPrefixes[rowID%len(textPKeyPrefixes)]
 		valueClause := fmt.Sprintf("( %d, 0, '%s-%d'", rowID, textPKeyPrefix, rowID)
 
+		var valueClauseSb167 strings.Builder
 		for _, columnType := range sortedTypes {
-			valueClause += `, ` + columnTypes[columnType][rowID%len(columnTypes[columnType])]
+			valueClauseSb167.WriteString(`, ` + columnTypes[columnType][rowID%len(columnTypes[columnType])])
 		}
+
+		valueClause += valueClauseSb167.String()
 
 		valueClause += `)`
 

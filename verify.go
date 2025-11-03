@@ -2,6 +2,7 @@ package pgverify
 
 import (
 	"context"
+	"slices"
 
 	"github.com/jackc/pgx/pgtype"
 	"github.com/jackc/pgx/v5"
@@ -136,22 +137,10 @@ func (c Config) fetchTargetTableNames(ctx context.Context, conn *pgx.Conn) (Sing
 
 func (c Config) validColumnTarget(columnName string) bool {
 	if len(c.IncludeColumns) == 0 {
-		for _, excludedColumn := range c.ExcludeColumns {
-			if excludedColumn == columnName {
-				return false
-			}
-		}
-
-		return true
+		return !slices.Contains(c.ExcludeColumns, columnName)
 	}
 
-	for _, includedColumn := range c.IncludeColumns {
-		if includedColumn == columnName {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(c.IncludeColumns, columnName)
 }
 
 func (c Config) runTestQueriesOnTarget(ctx context.Context, logger *logrus.Entry, conn *pgx.Conn, schemaTableHashes SingleResult) SingleResult {
