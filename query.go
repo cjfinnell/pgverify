@@ -24,24 +24,34 @@ func buildGetTablesQuery(includeSchemas, excludeSchemas, includeTables, excludeT
 
 	if len(includeSchemas) > 0 {
 		whereClause := "table_schema IN ("
+
+		var whereClauseSb27 strings.Builder
 		for i := range includeSchemas {
-			whereClause += fmt.Sprintf("'%s'", includeSchemas[i])
+			whereClauseSb27.WriteString(fmt.Sprintf("'%s'", includeSchemas[i]))
+
 			if i < len(includeSchemas)-1 {
-				whereClause += ", "
+				whereClauseSb27.WriteString(", ")
 			}
 		}
+
+		whereClause += whereClauseSb27.String()
 
 		whereClause += ")"
 
 		whereClauses = append(whereClauses, whereClause)
 	} else if len(excludeSchemas) > 0 {
 		whereClause := "table_schema NOT IN ("
+
+		var whereClauseSb39 strings.Builder
 		for i := range excludeSchemas {
-			whereClause += fmt.Sprintf("'%s'", excludeSchemas[i])
+			whereClauseSb39.WriteString(fmt.Sprintf("'%s'", excludeSchemas[i]))
+
 			if i < len(excludeSchemas)-1 {
-				whereClause += ", "
+				whereClauseSb39.WriteString(", ")
 			}
 		}
+
+		whereClause += whereClauseSb39.String()
 
 		whereClause += ")"
 		whereClauses = append(whereClauses, whereClause)
@@ -49,24 +59,34 @@ func buildGetTablesQuery(includeSchemas, excludeSchemas, includeTables, excludeT
 
 	if len(includeTables) > 0 {
 		whereClause := "table_name IN ("
+
+		var whereClauseSb52 strings.Builder
 		for i := range includeTables {
-			whereClause += fmt.Sprintf("'%s'", includeTables[i])
+			whereClauseSb52.WriteString(fmt.Sprintf("'%s'", includeTables[i]))
+
 			if i < len(includeTables)-1 {
-				whereClause += ", "
+				whereClauseSb52.WriteString(", ")
 			}
 		}
+
+		whereClause += whereClauseSb52.String()
 
 		whereClause += ")"
 
 		whereClauses = append(whereClauses, whereClause)
 	} else if len(excludeTables) > 0 {
 		whereClause := "table_name NOT IN ("
+
+		var whereClauseSb64 strings.Builder
 		for i := range excludeTables {
-			whereClause += fmt.Sprintf("'%s'", excludeTables[i])
+			whereClauseSb64.WriteString(fmt.Sprintf("'%s'", excludeTables[i]))
+
 			if i < len(excludeTables)-1 {
-				whereClause += ", "
+				whereClauseSb64.WriteString(", ")
 			}
 		}
+
+		whereClause += whereClauseSb64.String()
 
 		whereClause += ")"
 		whereClauses = append(whereClauses, whereClause)

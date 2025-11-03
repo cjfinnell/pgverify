@@ -2,6 +2,7 @@ package pgverify
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -15,13 +16,7 @@ type column struct {
 // IsPrimaryKey attempts to parse the constraint string to determine if the
 // column is a primary key.
 func (c column) IsPrimaryKey() bool {
-	for _, constraintType := range c.constraints {
-		if constraintType == "PRIMARY KEY" {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(c.constraints, "PRIMARY KEY")
 }
 
 // CastToText generates PSQL expression to cast the column to the TEXT type in
