@@ -4,7 +4,7 @@ build:
 
 .PHONY: clean
 clean:
-	-@rm -f pgverify coverage.txt
+	-@rm -f pgverify coverage.txt int-test-junit.xml
 	-@go clean -testcache
 
 .PHONY: lint
@@ -17,8 +17,10 @@ lint-fix:
 
 .PHONY: unit-test
 unit-test:
-	@go tool gotestsum --format=testname -- -v -short ./...
+	@go tool gotestsum --format=testname -- \
+	    -v -short ./...
 
 .PHONY: test
 test:
-	@go tool gotestsum --format=testname -- -v -cover -coverprofile coverage.txt -covermode=atomic -race ./...
+	@go tool gotestsum --format=testname --junitfile int-test-junit.xml -- \
+	    -v -cover -coverprofile coverage.txt -covermode=atomic -race ./...

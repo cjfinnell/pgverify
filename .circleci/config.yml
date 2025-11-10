@@ -27,6 +27,8 @@ jobs:
           command: make test
       - codecov/upload:
           files: coverage.txt
+      - store_test_results:
+          path: int-test-junit.xml
 
 workflows:
   version: 2
