@@ -84,7 +84,7 @@ func calculateRowCount(columnTypes map[string][]string) int {
 	return rowCount
 }
 
-func TestVerifyData(t *testing.T) {
+func TestIntegrationVerifyData(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
@@ -291,7 +291,7 @@ func TestVerifyData(t *testing.T) {
 	}
 }
 
-func TestVerifyDataFail(t *testing.T) {
+func TestIntegrationVerifyDataFail(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
