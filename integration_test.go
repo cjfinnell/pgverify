@@ -50,7 +50,7 @@ func waitForDBReady(t *testing.T, ctx context.Context, config *pgx.ConnConfig) b
 func createContainer(t *testing.T, ctx context.Context, image string) (*pgx.ConnConfig, error) {
 	t.Helper()
 
-	containerName := strings.ToLower(containerNameRegex.ReplaceAllString(fmt.Sprintf("pgverify-int-test-%s", image), "-"))
+	containerName := strings.ToLower(containerNameRegex.ReplaceAllString("pgverify-int-test-"+image, "-"))
 
 	switch {
 	case strings.HasPrefix(image, "cockroach"):
