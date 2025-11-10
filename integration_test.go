@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -22,6 +23,8 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/cockroachdb"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )
+
+var containerNameRegex = regexp.MustCompile(`[^a-zA-Z0-9_]+`)
 
 func waitForDBReady(t *testing.T, ctx context.Context, config *pgx.ConnConfig) bool {
 	t.Helper()
@@ -47,15 +50,17 @@ func waitForDBReady(t *testing.T, ctx context.Context, config *pgx.ConnConfig) b
 func createContainer(t *testing.T, ctx context.Context, image string) (*pgx.ConnConfig, error) {
 	t.Helper()
 
+	containerName := strings.ToLower(containerNameRegex.ReplaceAllString("pgverify-int-test-"+image, "-"))
+
 	switch {
 	case strings.HasPrefix(image, "cockroach"):
-		cockroachdbContainer, err := cockroachdb.Run(ctx, image, cockroachdb.WithInsecure())
+		cockroachdbContainer, err := cockroachdb.Run(ctx, image, testcontainers.WithName(containerName), cockroachdb.WithInsecure())
 		require.NoError(t, err)
 		t.Cleanup(func() { require.NoError(t, testcontainers.TerminateContainer(cockroachdbContainer)) })
 
 		return cockroachdbContainer.ConnectionConfig(ctx)
 	case strings.HasPrefix(image, "postgres"):
-		postgresContainer, err := postgres.Run(ctx, image)
+		postgresContainer, err := postgres.Run(ctx, image, testcontainers.WithName(containerName))
 		require.NoError(t, err)
 		t.Cleanup(func() { require.NoError(t, testcontainers.TerminateContainer(postgresContainer)) })
 
