@@ -1,6 +1,7 @@
 package pgverify
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -95,6 +96,57 @@ func (r *Results) CheckForErrors() []error {
 	}
 
 	return errors
+}
+
+// GetTargetError returns a wrapping of all errors specific to a given target.
+func (r *Results) GetTargetError(target string) error {
+	var targetErrors []error
+
+	for schema, tables := range r.content {
+		for table, modes := range tables {
+
+			for mode, outputs := range modes {
+
+				if len(outputs) == 1 {
+					continue // stop looking for errors if all targets agree
+				}
+
+				majorityCount := 0
+				majorityOutput := ""
+				targetOutput := ""
+
+				for output, targets := range outputs {
+					if len(targets) > majorityCount {
+						majorityOutput = output
+						majorityCount = len(targets)
+					}
+
+					for _, targetName := range targets {
+						if targetName != target {
+							continue
+						}
+						targetOutput = output
+						break
+					}
+
+					if targetOutput != "" {
+						break
+					}
+				}
+
+				if majorityOutput != targetOutput {
+					targetErrors = append(targetErrors, fmt.Errorf("%s.%s test %s has majority output %s but target %s has output %s", schema, table, mode, majorityOutput, target, targetOutput))
+				}
+			}
+
+		}
+	}
+
+	if len(targetErrors) == 0 {
+		return nil
+	}
+
+	return errors.Join(targetErrors...)
 }
 
 // WriteAsTable writes the results as a table to the given io.Writer.
