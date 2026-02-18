@@ -49,10 +49,12 @@ var rootCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		logger := log.New()
 		logger.SetFormatter(&log.TextFormatter{})
+
 		levelInt, err := log.ParseLevel(*logLevelFlag)
 		if err != nil {
 			levelInt = log.InfoLevel
 		}
+
 		logger.SetLevel(levelInt)
 
 		if len(args) == 0 {
@@ -60,11 +62,13 @@ var rootCmd = &cobra.Command{
 		}
 
 		var targets []*pgx.ConnConfig
+
 		for _, target := range args {
 			connConfig, err := pgx.ParseConfig(target)
 			if err != nil {
 				logger.Fatalf("invalid target URI %s: %s", target, err)
 			}
+
 			targets = append(targets, connConfig)
 		}
 
