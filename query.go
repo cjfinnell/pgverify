@@ -27,7 +27,7 @@ func buildGetTablesQuery(includeSchemas, excludeSchemas, includeTables, excludeT
 
 		var whereClauseSb27 strings.Builder
 		for i := range includeSchemas {
-			whereClauseSb27.WriteString(fmt.Sprintf("'%s'", includeSchemas[i]))
+			fmt.Fprintf(&whereClauseSb27, "'%s'", includeSchemas[i])
 
 			if i < len(includeSchemas)-1 {
 				whereClauseSb27.WriteString(", ")
@@ -44,7 +44,7 @@ func buildGetTablesQuery(includeSchemas, excludeSchemas, includeTables, excludeT
 
 		var whereClauseSb39 strings.Builder
 		for i := range excludeSchemas {
-			whereClauseSb39.WriteString(fmt.Sprintf("'%s'", excludeSchemas[i]))
+			fmt.Fprintf(&whereClauseSb39, "'%s'", excludeSchemas[i])
 
 			if i < len(excludeSchemas)-1 {
 				whereClauseSb39.WriteString(", ")
@@ -62,7 +62,7 @@ func buildGetTablesQuery(includeSchemas, excludeSchemas, includeTables, excludeT
 
 		var whereClauseSb52 strings.Builder
 		for i := range includeTables {
-			whereClauseSb52.WriteString(fmt.Sprintf("'%s'", includeTables[i]))
+			fmt.Fprintf(&whereClauseSb52, "'%s'", includeTables[i])
 
 			if i < len(includeTables)-1 {
 				whereClauseSb52.WriteString(", ")
@@ -79,7 +79,7 @@ func buildGetTablesQuery(includeSchemas, excludeSchemas, includeTables, excludeT
 
 		var whereClauseSb64 strings.Builder
 		for i := range excludeTables {
-			whereClauseSb64.WriteString(fmt.Sprintf("'%s'", excludeTables[i]))
+			fmt.Fprintf(&whereClauseSb64, "'%s'", excludeTables[i])
 
 			if i < len(excludeTables)-1 {
 				whereClauseSb64.WriteString(", ")
