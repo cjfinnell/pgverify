@@ -89,6 +89,31 @@ func TestIntegrationVerifyData(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
+	postgresVerList := os.Getenv("INT_TEST_POSTGRES_VERSIONS")
+	if postgresVerList == "" {
+		postgresVerList = strings.Join([]string{
+			"10",
+			"11",
+			"12",
+			"13",
+			"14",
+			"15",
+			"16",
+			"17",
+			"18",
+		}, ",")
+	}
+
+	cockroachVerList := os.Getenv("INT_TEST_COCKROACH_VERSIONS")
+	if cockroachVerList == "" {
+		cockroachVerList = strings.Join([]string{
+			"latest-v22.2",
+			"latest-v23.2",
+			"latest-v24.3",
+			"latest-v25.3",
+		}, ",")
+	}
+
 	for _, tc := range []struct {
 		name         string
 		psqlVersions []string
@@ -100,24 +125,9 @@ func TestIntegrationVerifyData(t *testing.T) {
 			crdbVersions: []string{"latest"}, // cockroach cloud
 		},
 		{
-			name: "Full",
-			psqlVersions: []string{
-				"10",
-				"11",
-				"12",
-				"13",
-				"14",
-				"15",
-				"16",
-				"17",
-				"18",
-			},
-			crdbVersions: []string{
-				"latest-v22.2",
-				"latest-v23.2",
-				"latest-v24.3",
-				"latest-v25.3",
-			},
+			name:         "Full",
+			psqlVersions: strings.Split(postgresVerList, ","),
+			crdbVersions: strings.Split(cockroachVerList, ","),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -285,8 +295,14 @@ func TestIntegrationVerifyData(t *testing.T) {
 				pgverify.WithBookendLimit(5),
 				pgverify.WithHashPrimaryKeys(),
 			)
-			require.NoError(t, err)
 			require.NoError(t, results.WriteAsTable(os.Stdout))
+			assert.NoError(t, err)
+
+			for _, target := range aliases {
+				t.Run(target, func(t *testing.T) {
+					require.NoError(t, results.GetTargetError(target))
+				})
+			}
 		})
 	}
 }
