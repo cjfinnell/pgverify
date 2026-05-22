@@ -635,7 +635,7 @@ github.com/jackc/pgservicefile
 ## explicit
 github.com/jackc/pgx/pgio
 github.com/jackc/pgx/pgtype
-# github.com/jackc/pgx/v5 v5.9.1
+# github.com/jackc/pgx/v5 v5.9.2
 ## explicit; go 1.25.0
 github.com/jackc/pgx/v5
 github.com/jackc/pgx/v5/internal/iobufpool
