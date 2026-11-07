@@ -7,6 +7,7 @@ linters:
     - err113
     - errorlint
     - exhaustruct
+    - exhaustruct_v5
     - funlen
     - gochecknoglobals
     - gochecknoinits
@@ -26,6 +27,11 @@ linters:
       - common-false-positives
       - legacy
       - std-error-handling
+    rules:
+      - path: _test\.go
+        linters:
+          - goconst
+          - gosec
     paths:
       - third_party$
       - builtin$
