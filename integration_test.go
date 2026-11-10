@@ -58,7 +58,17 @@ func createContainer(t *testing.T, ctx context.Context, image string) (*pgx.Conn
 		require.NoError(t, err)
 		t.Cleanup(func() { require.NoError(t, testcontainers.TerminateContainer(cockroachdbContainer)) })
 
-		return cockroachdbContainer.ConnectionConfig(ctx)
+		connInfo, err := cockroachdbContainer.ConnectionInfo(ctx)
+		require.NoError(t, err)
+
+		connConfig, err := pgx.ParseConfig(connInfo.URL)
+		if err != nil {
+			return nil, err
+		}
+
+		connConfig.TLSConfig = connInfo.TLSConfig
+
+		return connConfig, nil
 	case strings.HasPrefix(image, "postgres"):
 		postgresContainer, err := postgres.Run(ctx, image, testcontainers.WithName(containerName))
 		require.NoError(t, err)
